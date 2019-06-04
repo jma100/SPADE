@@ -24,7 +24,7 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
 #        parser.set_defaults(no_instance=True)
-	parser.add_argument('--instance_dir', type=str, default='', help='path to the directory that contains instance maps. Leave black if not exists')
+        parser.add_argument('--instance_dir', type=str, default='', help='path to the directory that contains instance maps. Leave black if not exists')
         return parser
 
     def get_paths(self, opt):
