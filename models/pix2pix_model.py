@@ -109,10 +109,12 @@ class Pix2PixModel(torch.nn.Module):
     def preprocess_input(self, data):
         # move to GPU and change data types
         data['label'] = data['label'].long()
+        data['scene'] = data['scene'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
             data['image'] = data['image'].cuda()
+            data['scene'] = data['scene'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -122,14 +124,20 @@ class Pix2PixModel(torch.nn.Module):
         input_label = self.FloatTensor(bs, nc, h, w).zero_()
         input_semantics = input_label.scatter_(1, label_map, 1.0)
 
+	# create one-hot scene mask
+        scene_mask = data['scene']
+        bs, _, h, w = scene_mask.size()
+        nc = 1055
+        input_scene = self.FloatTensor(bs, nc, h, w).zero_()
+        input_scene_mask = input_scene.scatter_(1, scene_mask, 1.0)
+
         # concatenate instance map if it exists
         if not self.opt.no_instance:
             inst_map = data['instance']
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        scene_mask = data['scene']
-        input_semantics = torch.cat((input_semantics, scene_mask.float()), dim=1)
+        input_semantics = torch.cat((input_semantics, input_scene_mask), dim=1)
 
         return input_semantics, data['image']
 
