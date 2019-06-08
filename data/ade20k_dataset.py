@@ -24,6 +24,7 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
+        parser.add_argument('--scene_mask_dir', type=str, default='', help='path to the directory that contains scene masks. Leave black if not exists')
         return parser
 
     def get_paths(self, opt):
@@ -43,7 +44,13 @@ class ADE20KDataset(Pix2pixDataset):
 
         instance_paths = []  # don't use instance map for ade20k
 
-        return label_paths, image_paths, instance_paths
+        if len(opt.scene_mask_dir) > 0:
+            scene_mask_dir = opt.scene_mask_dir
+            scene_paths = make_dataset(scene_mask_dir, recursive=False, read_cache=True)
+        else:
+            scene_paths = []
+
+        return label_paths, image_paths, instance_paths, scene_paths
 
     # In ADE20k, 'unknown' label is of value 0.
     # Change the 'unknown' label to the last label to match other datasets.

@@ -19,16 +19,18 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
 
-        label_paths, image_paths, instance_paths = self.get_paths(opt)
+        label_paths, image_paths, instance_paths, scene_paths = self.get_paths(opt)
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
+        util.natural_sort(scene_paths)
         if not opt.no_instance:
             util.natural_sort(instance_paths)
 
         label_paths = label_paths[:opt.max_dataset_size]
         image_paths = image_paths[:opt.max_dataset_size]
         instance_paths = instance_paths[:opt.max_dataset_size]
+        scene_paths = scene_paths[:opt.max_dataset_size]
 
         if not opt.no_pairing_check:
             for path1, path2 in zip(label_paths, image_paths):
@@ -38,6 +40,7 @@ class Pix2pixDataset(BaseDataset):
         self.label_paths = label_paths
         self.image_paths = image_paths
         self.instance_paths = instance_paths
+        self.scene_paths = scene_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -46,8 +49,9 @@ class Pix2pixDataset(BaseDataset):
         label_paths = []
         image_paths = []
         instance_paths = []
+        scene_paths = []
         assert False, "A subclass of Pix2pixDataset must override self.get_paths(self, opt)"
-        return label_paths, image_paths, instance_paths
+        return label_paths, image_paths, instance_paths, scene_paths
 
     def paths_match(self, path1, path2):
         filename1_without_ext = os.path.splitext(os.path.basename(path1))[0]
@@ -62,6 +66,11 @@ class Pix2pixDataset(BaseDataset):
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
+
+        # scene mask
+        scene_path = self.scene_paths[index]
+        scene = Image.open(scene_path)
+        scene_tensor = transform_label(scene) * 255.0
 
         # input image (real images)
         image_path = self.image_paths[index]
@@ -90,6 +99,7 @@ class Pix2pixDataset(BaseDataset):
                       'instance': instance_tensor,
                       'image': image_tensor,
                       'path': image_path,
+                      'scene': scene_tensor
                       }
 
         # Give subclasses a chance to modify the final output
