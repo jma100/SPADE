@@ -126,10 +126,10 @@ class Pix2PixModel(torch.nn.Module):
 
 	# create one-hot scene mask
         scene_mask = data['scene']
-        bs, _, h, w = scene_mask.size()
-        nc = 1055
-        input_scene = self.FloatTensor(bs, nc, h, w).zero_()
-        input_scene_mask = input_scene.scatter_(1, scene_mask, 1.0)
+#        bs, _, h, w = scene_mask.size()
+#        nc = 1055
+#        input_scene = self.FloatTensor(bs, nc, h, w).zero_()
+#        input_scene_mask = input_scene.scatter_(1, scene_mask, 1.0)
 
         # concatenate instance map if it exists
         if not self.opt.no_instance:
@@ -137,7 +137,7 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        input_semantics = torch.cat((input_semantics, input_scene_mask), dim=1)
+        input_semantics = torch.cat((input_semantics, scene_mask.float()), dim=1)
 
         return input_semantics, data['image']
 
