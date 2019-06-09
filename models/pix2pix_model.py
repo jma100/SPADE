@@ -112,7 +112,9 @@ class Pix2PixModel(torch.nn.Module):
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
-            data['image'] = data['image'].cuda()
+            data['luminance'] = data['luminance'].cuda()
+            data['chroma_blue'] = data['chroma_blue'].cuda()
+            data['chroma_red'] = data['chroma_red'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -128,7 +130,9 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        return input_semantics, data['image']
+        input_semantics = torch.cat((input_semantics, data['chroma_blue'].float(), data['chroma_red'].float()))
+
+        return input_semantics, data['luminance']
 
     def compute_generator_loss(self, input_semantics, real_image):
         G_losses = {}

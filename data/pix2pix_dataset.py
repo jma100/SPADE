@@ -70,9 +70,17 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
+        image = image.convert('YCbCr')
 
+        data = np.array(image)
+        Y = Image.fromarray(data[:,:,0])
+        Cb = Image.fromarray(data[:,:,1])
+        Cr = Image.fromarray(data[:,:,2])
+        
         transform_image = get_transform(self.opt, params)
-        image_tensor = transform_image(image)
+        Y_tensor = transform_image(Y)
+        Cb_tensor = transform_image(Cb)
+        Cr_tensor = transform_image(Cr)
 
         # if using instance maps
         if self.opt.no_instance:
@@ -88,8 +96,10 @@ class Pix2pixDataset(BaseDataset):
 
         input_dict = {'label': label_tensor,
                       'instance': instance_tensor,
-                      'image': image_tensor,
+                      'luminance': Y_tensor,
                       'path': image_path,
+                      'chroma_blue': Cb_tensor,
+                      'chroma_red': Cr_tensor
                       }
 
         # Give subclasses a chance to modify the final output
