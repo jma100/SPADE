@@ -7,7 +7,7 @@ from data.base_dataset import BaseDataset, get_params, get_transform
 from PIL import Image
 import util.util as util
 import os
-
+import numpy as np
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
