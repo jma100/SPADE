@@ -130,7 +130,7 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        input_semantics = torch.cat((input_semantics, data['chroma_blue'].float(), data['chroma_red'].float()))
+        input_semantics = torch.cat((input_semantics, data['chroma_blue'].float(), data['chroma_red'].float()), dim=1)
 
         return input_semantics, data['luminance']
 
@@ -162,7 +162,7 @@ class Pix2PixModel(torch.nn.Module):
             G_losses['GAN_Feat'] = GAN_Feat_loss
 
         if not self.opt.no_vgg_loss:
-            G_losses['VGG'] = self.criterionVGG(fake_image, real_image) \
+            G_losses['VGG'] = self.criterionVGG(fake_image.repeat(1, 3, 1, 1), real_image.repeat(1, 3, 1, 1)) \
                 * self.opt.lambda_vgg
 
         return G_losses, fake_image
