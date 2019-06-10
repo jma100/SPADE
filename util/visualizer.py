@@ -54,7 +54,7 @@ class Visualizer():
                     s = BytesIO()
                 if len(image_numpy.shape) >= 4:
                     image_numpy = image_numpy[0]
-                scipy.misc.toimage(image_numpy).save(s, format="jpeg")
+                scipy.misc.toimage(image_numpy, mode='YCbCr').convert('RGB').save(s, format="jpeg")
                 # Create an Image object
                 img_sum = self.tf.Summary.Image(encoded_image_string=s.getvalue(), height=image_numpy.shape[0], width=image_numpy.shape[1])
                 # Create a Summary value
