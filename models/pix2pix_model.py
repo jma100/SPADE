@@ -130,9 +130,10 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        input_semantics = torch.cat((input_semantics, data['chroma_blue'].float(), data['chroma_red'].float()), dim=1)
+        input_semantics = torch.cat((input_semantics, data['luminance'].float()), dim=1)
 
-        return input_semantics, data['luminance']
+        input_color = torch.cat((data['chroma_blue'], data['chroma_red']),dim=1)
+        return input_semantics, input_color
 
     def compute_generator_loss(self, input_semantics, real_image):
         G_losses = {}

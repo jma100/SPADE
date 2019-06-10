@@ -52,7 +52,7 @@ for epoch in iter_counter.training_epochs():
         if iter_counter.needs_displaying():
             visuals = OrderedDict([('input_label', data_i['label']),
                                    ('synthesized_image', trainer.get_latest_generated()),
-                                   ('real_image', data_i['luminance'])])
+                                   ('real_image', torch.cat((data_i['luminance'], data_i['chroma_blue'], data_i['chroma_red']),dim=1))])
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_saving():
