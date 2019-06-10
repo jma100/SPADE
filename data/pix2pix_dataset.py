@@ -70,6 +70,7 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
+        image = image.convert('YCbCr')
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
