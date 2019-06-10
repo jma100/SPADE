@@ -97,6 +97,13 @@ class GANLoss(nn.Module):
         else:
             return self.loss(input, target_is_real, for_discriminator)
 
+def ycrcb_to_rgb_torch(input_tensor, delta = 0.5):
+    y, cb, cr = input_tensor[:,0,:,:], input_tensor[:,1,:,:], input_tensor[:,2,:,:]
+    r = torch.unsqueeze(y + 1.403 * (cr - delta), 1)
+    g = torch.unsqueeze(y - 0.714 * (cr - delta) - 0.344 * (cb - delta), 1)
+    b = torch.unsqueeze(y + 1.773 * (cb - delta), 1)
+
+    return torch.cat([r, g, b], 1)
 
 # Perceptual loss that uses a pretrained VGG network
 class VGGLoss(nn.Module):
@@ -114,13 +121,6 @@ class VGGLoss(nn.Module):
             loss += self.weights[i] * self.criterion(x_vgg[i], y_vgg[i].detach())
         return loss
 
-    def ycrcb_to_rgb_torch(input_tensor, delta = 0.5):
-        y, cb, cr = input_tensor[:,0,:,:], input_tensor[:,1,:,:], input_tensor[:,2,:,:]
-        r = torch.unsqueeze(y + 1.403 * (cr - delta), 1)
-        g = torch.unsqueeze(y - 0.714 * (cr - delta) - 0.344 * (cb - delta), 1)
-        b = torch.unsqueeze(y + 1.773 * (cb - delta), 1)
-    
-        return torch.cat([r, g, b], 1)
 
 # KL Divergence loss used in VAE with an image encoder
 class KLDLoss(nn.Module):
