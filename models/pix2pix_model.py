@@ -113,8 +113,6 @@ class Pix2PixModel(torch.nn.Module):
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
             data['luminance'] = data['luminance'].cuda()
-            data['chroma_blue'] = data['chroma_blue'].cuda()
-            data['chroma_red'] = data['chroma_red'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -130,7 +128,6 @@ class Pix2PixModel(torch.nn.Module):
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
 
-        input_semantics = torch.cat((input_semantics, data['chroma_blue'].float(), data['chroma_red'].float()), dim=1)
 
         return input_semantics, data['luminance']
 
