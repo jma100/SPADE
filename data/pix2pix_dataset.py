@@ -70,9 +70,8 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
-        image = image.convert('L')
+        luma = image.convert('L')
 
-        luma = np.array(image)
         
         transform_image = get_transform(self.opt, params)
         luma_tensor = transform_image(luma)
