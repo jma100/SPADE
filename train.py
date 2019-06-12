@@ -10,6 +10,7 @@ import data
 from util.iter_counter import IterationCounter
 from util.visualizer import Visualizer
 from trainers.pix2pix_trainer import Pix2PixTrainer
+import torch
 
 # parse options
 opt = TrainOptions().parse()
@@ -51,7 +52,7 @@ for epoch in iter_counter.training_epochs():
 
         if iter_counter.needs_displaying():
             visuals = OrderedDict([('input_label', data_i['label']),
-                                   ('synthesized_image', trainer.get_latest_generated()),
+                                   ('synthesized_image', torch.cat((data_i['luminance'].cuda(),trainer.get_latest_generated()),1)),
                                    ('real_image', torch.cat((data_i['luminance'], data_i['chroma_blue'], data_i['chroma_red']),dim=1))])
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 

@@ -39,11 +39,11 @@ class Pix2PixModel(torch.nn.Module):
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        input_semantics, real_image = self.preprocess_input(data)
+        input_semantics, real_image, real_luma = self.preprocess_input(data)
 
         if mode == 'generator':
             g_loss, generated = self.compute_generator_loss(
-                input_semantics, real_image)
+                input_semantics, real_image, real_luma)
             return g_loss, generated
         elif mode == 'discriminator':
             d_loss = self.compute_discriminator_loss(
@@ -133,9 +133,9 @@ class Pix2PixModel(torch.nn.Module):
         input_semantics = torch.cat((input_semantics, data['luminance'].float()), dim=1)
 
         input_color = torch.cat((data['chroma_blue'], data['chroma_red']),dim=1)
-        return input_semantics, input_color
+        return input_semantics, input_color, data['luminance']
 
-    def compute_generator_loss(self, input_semantics, real_image):
+    def compute_generator_loss(self, input_semantics, real_image, real_luma):
         G_losses = {}
 
         fake_image, KLD_loss = self.generate_fake(
@@ -163,7 +163,7 @@ class Pix2PixModel(torch.nn.Module):
             G_losses['GAN_Feat'] = GAN_Feat_loss
 
         if not self.opt.no_vgg_loss:
-            G_losses['VGG'] = self.criterionVGG(fake_image.repeat(1, 3, 1, 1), real_image.repeat(1, 3, 1, 1)) \
+            G_losses['VGG'] = self.criterionVGG(torch.cat((real_luma,fake_image),1), torch.cat((real_luma, real_image),1)) \
                 * self.opt.lambda_vgg
 
         return G_losses, fake_image
