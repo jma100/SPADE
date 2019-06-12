@@ -5,6 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 import os
 from collections import OrderedDict
+import torch
 
 import data
 from options.test_options import TestOptions
@@ -39,7 +40,7 @@ for i, data_i in enumerate(dataloader):
     for b in range(generated.shape[0]):
         print('process image... %s' % img_path[b])
         visuals = OrderedDict([('input_label', data_i['label'][b]),
-                               ('synthesized_image', generated[b])])
+                               ('synthesized_image', torch.cat((data_i['luminance'][b],generated[b]),0))])
         visualizer.save_images(webpage, visuals, img_path[b:b + 1])
 
 webpage.save()
