@@ -97,6 +97,13 @@ class GANLoss(nn.Module):
         else:
             return self.loss(input, target_is_real, for_discriminator)
 
+def ycrcb_to_rgb_torch(input_tensor, delta = 0.5):
+    y, cb, cr = input_tensor[:,0,:,:], input_tensor[:,1,:,:], input_tensor[:,2,:,:]
+    r = torch.unsqueeze(y + 1.403 * (cr - delta), 1)
+    g = torch.unsqueeze(y - 0.714 * (cr - delta) - 0.344 * (cb - delta), 1)
+    b = torch.unsqueeze(y + 1.773 * (cb - delta), 1)
+
+    return torch.cat([r, g, b], 1)
 
 # Perceptual loss that uses a pretrained VGG network
 class VGGLoss(nn.Module):
@@ -107,6 +114,7 @@ class VGGLoss(nn.Module):
         self.weights = [1.0 / 32, 1.0 / 16, 1.0 / 8, 1.0 / 4, 1.0]
 
     def forward(self, x, y):
+        x, y = ycrcb_to_rgb_torch(x), ycrcb_to_rgb_torch(y)
         x_vgg, y_vgg = self.vgg(x), self.vgg(y)
         loss = 0
         for i in range(len(x_vgg)):
