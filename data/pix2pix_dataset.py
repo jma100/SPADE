@@ -57,7 +57,7 @@ class Pix2pixDataset(BaseDataset):
     def __getitem__(self, index):
         # Label Image
         label_path = self.label_paths[index]
-        label = Image.open(label_path)
+        label = Image.open(label_path).convert('L')
         params = get_params(self.opt, label.size)
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
@@ -65,7 +65,8 @@ class Pix2pixDataset(BaseDataset):
 
         # input image (real images)
         image_path = self.image_paths[index]
-        assert self.paths_match(label_path, image_path), \
+        if not self.opt.no_pairing_check:
+            assert self.paths_match(label_path, image_path), \
             "The label_path %s and image_path %s don't match." % \
             (label_path, image_path)
         image = Image.open(image_path)
