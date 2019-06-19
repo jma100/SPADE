@@ -103,7 +103,7 @@ class Pix2pixDataset(BaseDataset):
                       }
 
         # Give subclasses a chance to modify the final output
-        self.postprocess(input_dict)
+#        self.postprocess(input_dict)
 
         return input_dict
 
