@@ -32,6 +32,8 @@ class SPADEGenerator(BaseNetwork):
         if opt.use_vae:
             # In case of VAE, we will sample from random z vector
             self.fc = nn.Linear(opt.z_dim, 16 * nf * self.sw * self.sh)
+        elif opt.use_random:
+            self.fc = nn.Linear(opt.z_dim, 16 * nf * self.sw * self.sh)
         else:
             # Otherwise, we make the network deterministic by starting with
             # downsampled segmentation map instead of random z
@@ -80,6 +82,11 @@ class SPADEGenerator(BaseNetwork):
             # we sample z from unit normal and reshape the tensor
             if z is None:
                 z = torch.randn(input.size(0), self.opt.z_dim,
+                                dtype=torch.float32, device=input.get_device())
+            x = self.fc(z)
+            x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
+        elif self.opt.use_random:
+            z = torch.randn(input.size(0), self.opt.z_dim,
                                 dtype=torch.float32, device=input.get_device())
             x = self.fc(z)
             x = x.view(-1, 16 * self.opt.ngf, self.sh, self.sw)
@@ -132,7 +139,7 @@ class Pix2PixHDGenerator(BaseNetwork):
 
     def __init__(self, opt):
         super().__init__()
-        input_nc = opt.label_nc + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1)
+        input_nc = opt.label_nc + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0)
 
         norm_layer = get_nonspade_norm_layer(opt, opt.norm_G)
         activation = nn.ReLU(False)

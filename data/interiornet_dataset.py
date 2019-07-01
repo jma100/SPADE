@@ -32,15 +32,22 @@ class InteriornetDataset(Pix2pixDataset):
             training_list = training_list[:-1]
         image_paths = []
         label_paths = []
+        depth_paths = []
         for i,p in enumerate(training_list):
-            if 'cam0' in p:
+            if 'cam0' in p or 'normal' in p:
                 image_paths.append(p)
-            elif 'label0' in p:
+            elif 'label' in p:
                 label_paths.append(p)
+            elif opt.use_depth and 'depth' in p:
+                depth_paths.append(p)
+
 
         instance_paths = [] # don't use instance map for ade20k
 
-        return label_paths, image_paths, instance_paths
+        if opt.use_depth:
+            return label_paths, image_paths, instance_paths, depth_paths
+        else:
+            return label_paths, image_paths, instance_paths
 
     ## In ADE20k, 'unknown' label is of value 0.
     ## Change the 'unknown' label to 255 to match other datasets.

@@ -7,7 +7,8 @@ from data.base_dataset import BaseDataset, get_params, get_transform
 from PIL import Image
 import util.util as util
 import os
-
+import torch
+import numpy as np
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
@@ -19,7 +20,10 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
 
-        label_paths, image_paths, instance_paths = self.get_paths(opt)
+        if not opt.use_depth:
+            label_paths, image_paths, instance_paths = self.get_paths(opt)
+        else:
+            label_paths, image_paths, instance_paths, depth_paths = self.get_paths(opt)
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -38,6 +42,11 @@ class Pix2pixDataset(BaseDataset):
         self.label_paths = label_paths
         self.image_paths = image_paths
         self.instance_paths = instance_paths
+
+        if opt.use_depth:
+            util.natural_sort(depth_paths)
+            depth_paths = depth_paths[:opt.max_dataset_size]
+            self.depth_paths = depth_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -72,6 +81,18 @@ class Pix2pixDataset(BaseDataset):
         image = Image.open(image_path)
         image = image.convert('RGB')
 
+        # depth (processing)
+        if self.opt.use_depth:
+            depth_path = self.depth_paths[index]
+            depth = Image.open(depth_path)
+#            if depth.mode=='I':
+#                data = np.array(depth).astype(float)/10
+#                data = data.astype(np.uint8)
+#                depth = Image.fromarray(data).convert('L')
+            depth_tensor = transform_label(depth).float()
+            depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
+            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
@@ -87,7 +108,15 @@ class Pix2pixDataset(BaseDataset):
             else:
                 instance_tensor = transform_label(instance)
 
-        input_dict = {'label': label_tensor,
+        if self.opt.use_depth:
+            input_dict = {'label': label_tensor,
+                      'instance': instance_tensor,
+                      'image': image_tensor,
+                      'path': image_path,
+                      'depth': depth_tensor
+                      }
+        else:
+            input_dict = {'label': label_tensor,
                       'instance': instance_tensor,
                       'image': image_tensor,
                       'path': image_path,
