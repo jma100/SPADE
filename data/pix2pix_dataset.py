@@ -20,10 +20,12 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
 
-        if not opt.use_depth:
-            label_paths, image_paths, instance_paths = self.get_paths(opt)
-        else:
-            label_paths, image_paths, instance_paths, depth_paths = self.get_paths(opt)
+        all_paths = self.get_paths(opt)
+        label_paths, image_paths, instance_paths = all_paths[:3]
+        if self.opt.use_depth:
+            depth_paths = all_paths[3]
+        if self.opt.use_material:
+            material_paths = all_paths[3]
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -47,6 +49,11 @@ class Pix2pixDataset(BaseDataset):
             util.natural_sort(depth_paths)
             depth_paths = depth_paths[:opt.max_dataset_size]
             self.depth_paths = depth_paths
+
+        if opt.use_material:
+            util.natural_sort(material_paths)
+            material_paths = material_paths[:opt.max_dataset_size]
+            self.material_paths = material_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -81,6 +88,12 @@ class Pix2pixDataset(BaseDataset):
         image = Image.open(image_path)
         image = image.convert('RGB')
 
+        # material
+        if self.opt.use_material:
+            material_path = self.material_paths[index]
+            material = Image.open(material_path)
+            material_tensor = transform_label(material) * 255.0
+
         # depth (processing)
         if self.opt.use_depth:
             depth_path = self.depth_paths[index]
@@ -107,20 +120,16 @@ class Pix2pixDataset(BaseDataset):
                 instance_tensor = instance_tensor.long()
             else:
                 instance_tensor = transform_label(instance)
+        input_dict = {'label': label_tensor,
+                      'instance': instance_tensor,
+                      'image': image_tensor,
+                      'path': image_path,
+                      }
 
         if self.opt.use_depth:
-            input_dict = {'label': label_tensor,
-                      'instance': instance_tensor,
-                      'image': image_tensor,
-                      'path': image_path,
-                      'depth': depth_tensor
-                      }
-        else:
-            input_dict = {'label': label_tensor,
-                      'instance': instance_tensor,
-                      'image': image_tensor,
-                      'path': image_path,
-                      }
+            input_dict['depth'] = depth_tensor
+        if self.opt.use_material:
+            input_dict['material'] = material_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

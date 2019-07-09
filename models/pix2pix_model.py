@@ -109,12 +109,16 @@ class Pix2PixModel(torch.nn.Module):
     def preprocess_input(self, data):
         # move to GPU and change data types
         data['label'] = data['label'].long()
+        if self.opt.use_material:
+            data['material'] = data['material'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
             data['image'] = data['image'].cuda()
             if self.opt.use_depth:
                 data['depth'] = data['depth'].cuda()
+            if self.opt.use_material:
+                data['material'] = data['material'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -132,6 +136,13 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.use_depth:
             input_semantics = torch.cat((input_semantics, data['depth']),dim=1)
+
+        # create one-hot material map
+        if self.opt.use_material:
+            material_map = data['material']
+            input_material = self.FloatTensor(bs, self.opt.material_nc, h, w).zero_()
+            input_material_map = input_material.scatter_(1, material_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_material_map), dim=1)
 
         return input_semantics, data['image']
 

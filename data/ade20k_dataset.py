@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 from data.pix2pix_dataset import Pix2pixDataset
 from data.image_folder import make_dataset
-
+import os
 
 class ADE20KDataset(Pix2pixDataset):
 
@@ -40,8 +40,12 @@ class ADE20KDataset(Pix2pixDataset):
                 image_paths.append(p)
             elif p.endswith('.png'):
                 label_paths.append(p)
-
         instance_paths = []  # don't use instance map for ade20k
+
+        if opt.use_material:
+            material_root = '/data/vision/torralba/scratch2/jingweim/unifiedparsing/data/ade'
+            material_paths = [os.path.join(material_root, p.split('/')[-1][:-4], 'material_result.png') for p in image_paths]
+            return label_paths, image_paths, instance_paths, material_paths
 
         return label_paths, image_paths, instance_paths
 
@@ -51,3 +55,7 @@ class ADE20KDataset(Pix2pixDataset):
         label = input_dict['label']
         label = label - 1
         label[label == -1] = self.opt.label_nc
+        if self.opt.use_material:
+            material = input_dict['material']
+            material = material - 1
+            material[material == -1] = self.opt.material_nc

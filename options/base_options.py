@@ -67,6 +67,8 @@ class BaseOptions():
         parser.add_argument('--use_vae', action='store_true', help='enable training with an image encoder.')
         parser.add_argument('--use_depth', action='store_true', help='if specified, use depth as an input')
         parser.add_argument('--use_random', action='store_true', help='enable training with a random vector.')
+        parser.add_argument('--use_material', action='store_true', help='enable training with material mask')
+        parser.add_argument('--material_nc', type=int, default=26, help='# of material classes, from unified parsing')
 
         self.initialized = True
         return parser
@@ -161,7 +163,8 @@ class BaseOptions():
         opt.semantic_nc = opt.label_nc + \
             (1 if opt.contain_dontcare_label else 0) + \
             (0 if opt.no_instance else 1) + \
-            (1 if opt.use_depth else 0)
+            (1 if opt.use_depth else 0) + \
+            (opt.material_nc if opt.use_material else 0)
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')
