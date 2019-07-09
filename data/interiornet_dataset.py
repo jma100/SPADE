@@ -33,17 +33,22 @@ class InteriornetDataset(Pix2pixDataset):
         image_paths = []
         label_paths = []
         depth_paths = []
+        illumination_paths = []
         for i,p in enumerate(training_list):
             if 'cam0' in p or 'normal' in p:
                 image_paths.append(p)
             elif 'label' in p:
                 label_paths.append(p)
+            elif 'illumination' in p:
+                illumination_paths.append(p)
             elif opt.use_depth and 'depth' in p:
                 depth_paths.append(p)
 
 
         instance_paths = [] # don't use instance map for ade20k
 
+        if opt.use_illumination and opt.use_depth:
+            return label_paths, image_paths, instance_paths, depth_paths, illumination_paths
         if opt.use_depth:
             return label_paths, image_paths, instance_paths, depth_paths
         else:

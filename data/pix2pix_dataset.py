@@ -26,6 +26,8 @@ class Pix2pixDataset(BaseDataset):
             depth_paths = all_paths[3]
         if self.opt.use_material:
             material_paths = all_paths[3]
+        if self.opt.use_depth and self.opt.use_illumination:
+            illumination_paths = all_paths[4]
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -54,6 +56,11 @@ class Pix2pixDataset(BaseDataset):
             util.natural_sort(material_paths)
             material_paths = material_paths[:opt.max_dataset_size]
             self.material_paths = material_paths
+
+        if opt.use_illumination:
+            util.natural_sort(illumination_paths)
+            illumination_paths = illumination_paths[:opt.max_dataset_size]
+            self.illumination_paths = illumination_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -109,6 +116,13 @@ class Pix2pixDataset(BaseDataset):
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
+        # illumination
+        if self.opt.use_illumination:
+            illumination_path = self.illumination_paths[index]
+            illumination = Image.open(illumination_path).convert('L')
+            transform_illu = get_transform(self.opt, params, num_channel=1)
+            illumination_tensor = transform_illu(illumination)
+
         # if using instance maps
         if self.opt.no_instance:
             instance_tensor = 0
@@ -130,6 +144,8 @@ class Pix2pixDataset(BaseDataset):
             input_dict['depth'] = depth_tensor
         if self.opt.use_material:
             input_dict['material'] = material_tensor
+        if self.opt.use_illumination:
+            input_dict['illumination'] = illumination_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
