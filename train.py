@@ -40,7 +40,8 @@ for epoch in iter_counter.training_epochs():
             trainer.run_generator_one_step(data_i)
 
         # train discriminator
-        trainer.run_discriminator_one_step(data_i)
+        if i % opt.G_steps_per_D == 0:
+            trainer.run_discriminator_one_step(data_i)
 
         # Visualizations
         if iter_counter.needs_printing():

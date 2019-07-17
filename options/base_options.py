@@ -70,6 +70,7 @@ class BaseOptions():
         parser.add_argument('--use_material', action='store_true', help='enable training with material mask')
         parser.add_argument('--material_nc', type=int, default=26, help='# of material classes, from unified parsing')
         parser.add_argument('--use_illumination', action='store_true', help='enable training with illumination map')
+        parser.add_argument('--mask_sky', action='store_true', help='set sky to minimum value')
 
         self.initialized = True
         return parser

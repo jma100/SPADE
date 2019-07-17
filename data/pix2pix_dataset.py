@@ -20,14 +20,7 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
 
-        all_paths = self.get_paths(opt)
-        label_paths, image_paths, instance_paths = all_paths[:3]
-        if self.opt.use_depth:
-            depth_paths = all_paths[3]
-        if self.opt.use_material:
-            material_paths = all_paths[3]
-        if self.opt.use_depth and self.opt.use_illumination:
-            illumination_paths = all_paths[4]
+        label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -74,7 +67,7 @@ class Pix2pixDataset(BaseDataset):
 
     def paths_match(self, path1, path2):
         filename1_without_ext = os.path.splitext(os.path.basename(path1))[0]
-        filename2_without_ext = os.path.splitext(os.path.basename(path2))[0]
+        filename2_without_ext= os.path.splitext(os.path.basename(path2))[0]
         return filename1_without_ext == filename2_without_ext
 
     def __getitem__(self, index):
@@ -105,12 +98,25 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.use_depth:
             depth_path = self.depth_paths[index]
             depth = Image.open(depth_path)
+            im_mode = depth.mode
+            if self.opt.mask_sky:
+#            if self.opt.dataset_mode == 'ade20k':
+                # set sky depth to min
+                depth_data = np.array(depth)
+                data_type = depth_data.dtype
+                segm_data = np.array(label).astype(data_type)
+                mask = 1-(segm_data==3)
+                depth_data = depth_data * mask
+                min_val = np.partition(np.unique(depth_data), 2)[1]
+                depth_data[depth_data == 0] = min_val
+                depth = Image.fromarray(depth_data.astype(data_type), mode=im_mode)
 #            if depth.mode=='I':
 #                data = np.array(depth).astype(float)/10
 #                data = data.astype(np.uint8)
 #                depth = Image.fromarray(data).convert('L')
-            depth_tensor = transform_label(depth).float()
-            depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
+            depth_tensor = transform_label(depth).float() * 255.0
+            if self.opt.dataset_mode == 'interiornet':
+                depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
             depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
 
         transform_image = get_transform(self.opt, params)
