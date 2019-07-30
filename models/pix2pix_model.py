@@ -39,15 +39,26 @@ class Pix2PixModel(torch.nn.Module):
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        input_semantics, real_image = self.preprocess_input(data)
+        if self.opt.real_background:
+            input_semantics, real_image, fg, bg = self.preprocess_input(data)
+        else:
+            input_semantics, real_image = self.preprocess_input(data)
 
         if mode == 'generator':
-            g_loss, generated = self.compute_generator_loss(
-                input_semantics, real_image)
+            if self.opt.real_background:
+                g_loss, generated = self.compute_generator_loss(
+                    input_semantics, real_image, fg=fg, bg=bg)
+            else:
+                g_loss, generated = self.compute_generator_loss(
+                    input_semantics, real_image)
             return g_loss, generated
         elif mode == 'discriminator':
-            d_loss = self.compute_discriminator_loss(
-                input_semantics, real_image)
+            if self.opt.real_background:
+                d_loss = self.compute_discriminator_loss(
+                    input_semantics, real_image, fg=fg, bg=bg)
+            else:
+                d_loss = self.compute_discriminator_loss(
+                    input_semantics, real_image)
             return d_loss
         elif mode == 'encode_only':
             z, mu, logvar = self.encode_z(real_image)
@@ -123,6 +134,9 @@ class Pix2PixModel(torch.nn.Module):
                 data['illumination'] = data['illumination'].cuda()
             if self.opt.add_hint:
                 data['hint'] = data['hint'].cuda()
+            if self.opt.real_background:
+                data['fg'] = data['fg'].cuda()
+                data['bg'] = data['bg'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -154,13 +168,16 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.add_hint:
             input_semantics = torch.cat((input_semantics, data['hint']), dim=1)
 
+        if self.opt.real_background:
+            return input_semantics, data['image'], data['fg'], data['bg']
+
         return input_semantics, data['image']
 
-    def compute_generator_loss(self, input_semantics, real_image):
+    def compute_generator_loss(self, input_semantics, real_image, fg=None, bg=None):
         G_losses = {}
 
         fake_image, KLD_loss = self.generate_fake(
-            input_semantics, real_image, compute_kld_loss=self.opt.use_vae)
+            input_semantics, real_image, compute_kld_loss=self.opt.use_vae, fg=fg, bg=bg)
 
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
@@ -189,10 +206,10 @@ class Pix2PixModel(torch.nn.Module):
 
         return G_losses, fake_image
 
-    def compute_discriminator_loss(self, input_semantics, real_image):
+    def compute_discriminator_loss(self, input_semantics, real_image, fg=None, bg=None):
         D_losses = {}
         with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image)
+            fake_image, _ = self.generate_fake(input_semantics, real_image, fg=fg, bg=bg)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -211,15 +228,20 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False):
+    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False, fg = None, bg=None):
         z = None
         KLD_loss = None
         if self.opt.use_vae:
-            z, mu, logvar = self.encode_z(real_image)
+            if self.opt.real_background:
+                z, mu, logvar = self.encode_z(fg)
+            else:
+                z, mu, logvar = self.encode_z(real_image)
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 
         fake_image = self.netG(input_semantics, z=z)
+        if self.opt.real_background:
+            fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
 
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"

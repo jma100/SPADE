@@ -123,6 +123,13 @@ class Pix2pixDataset(BaseDataset):
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
+        if self.opt.real_background:
+            # foreground, feed into encoder
+            fg_tensor = image_tensor * label_tensor.long().float()
+            # background, combined with generated foreground
+            bg_tensor = image_tensor * (1 - label_tensor.long()).float()
+            
+
         if self.opt.add_hint:
             hint_tensor = image_tensor.clone()
             left, right = self.opt.crop_size // 2 - 15, self.opt.crop_size // 2 + 15
@@ -175,6 +182,9 @@ class Pix2pixDataset(BaseDataset):
             input_dict['hint'] = hint_tensor
         if self.opt.random_hint:
             input_dict['hint'] = random_hint_tensor
+        if self.opt.real_background:
+            input_dict['fg'] = fg_tensor
+            input_dict['bg'] = bg_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
