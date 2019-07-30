@@ -9,6 +9,7 @@ import util.util as util
 import os
 import torch
 import numpy as np
+import random
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
@@ -122,6 +123,24 @@ class Pix2pixDataset(BaseDataset):
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
+        if self.opt.add_hint:
+            hint_tensor = image_tensor.clone()
+            left, right = self.opt.crop_size // 2 - 15, self.opt.crop_size // 2 + 15
+            up, down = left, right
+            hint_tensor[ :, :up, :] = 0
+            hint_tensor[ :, down:, :] = 0
+            hint_tensor[ :, :, :left] = 0
+            hint_tensor[ :, :, right:] = 0
+
+            if self.opt.random_hint:
+                random_hint_tensor = image_tensor.clone()
+                random_hint_tensor[:, :, :] = 0
+                rand_u, rand_l = random.randint(0, self.opt.crop_size-31), random.randint(0, self.opt.crop_size-31)
+                rand_d, rand_r = rand_u+down-up, rand_l + right -left
+                random_hint_tensor[:, rand_u:rand_d, rand_l:rand_r] = hint_tensor[:, up:down, left:right]
+
+
+
         # illumination
         if self.opt.use_illumination:
             illumination_path = self.illumination_paths[index]
@@ -152,6 +171,10 @@ class Pix2pixDataset(BaseDataset):
             input_dict['material'] = material_tensor
         if self.opt.use_illumination:
             input_dict['illumination'] = illumination_tensor
+        if self.opt.add_hint:
+            input_dict['hint'] = hint_tensor
+        if self.opt.random_hint:
+            input_dict['hint'] = random_hint_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

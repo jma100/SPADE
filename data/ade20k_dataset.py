@@ -26,6 +26,8 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(no_instance=True)
         parser.add_argument('--depth_dir', type=str,
                             help='path to the directory that contains depth images')
+        parser.add_argument('--more_data', type=str,
+                            help='additional directory with more data, usually interiornet object')
         return parser
 
     def get_paths(self, opt):
@@ -39,14 +41,23 @@ class ADE20KDataset(Pix2pixDataset):
         material_paths = []
         illumination_paths = []
         for p in all_images:
-            if '_%s_' % phase not in p:
-                continue
+#            if '_%s_' % phase not in p:
+#                continue
             if p.endswith('.jpg'):
                 image_paths.append(p)
             elif p.endswith('.png'):
                 label_paths.append(p)
         instance_paths = []  # don't use instance map for ade20k
 
+        if opt.more_data:
+            more_images = make_dataset(opt.more_data, recursive=True, read_cache=False, write_cache=False)
+            for p in more_images:
+                if '_%s_' % phase not in p:
+                    continue
+                if p.endswith('.jpg'):
+                    image_paths.append(p)
+                elif p.endswith('.png'):
+                    label_paths.append(p)
 
         if opt.use_material:
             material_root = '/data/vision/torralba/scratch2/jingweim/unifiedparsing/data/ade'

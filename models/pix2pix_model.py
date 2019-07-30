@@ -121,6 +121,8 @@ class Pix2PixModel(torch.nn.Module):
                 data['material'] = data['material'].cuda()
             if self.opt.use_illumination:
                 data['illumination'] = data['illumination'].cuda()
+            if self.opt.add_hint:
+                data['hint'] = data['hint'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -148,6 +150,10 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.use_illumination:
             input_semantics = torch.cat((input_semantics, data['illumination']), dim=1)
+
+        if self.opt.add_hint:
+            input_semantics = torch.cat((input_semantics, data['hint']), dim=1)
+
         return input_semantics, data['image']
 
     def compute_generator_loss(self, input_semantics, real_image):

@@ -111,6 +111,8 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += opt.material_nc
         if opt.use_illumination:
             input_nc += 1
+        if opt.add_hint:
+            input_nc += 3
         return input_nc
 
     def forward(self, input):
