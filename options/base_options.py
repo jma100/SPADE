@@ -74,6 +74,8 @@ class BaseOptions():
         parser.add_argument('--add_hint', action='store_true', help='input a 10x10 center pixel')
         parser.add_argument('--random_hint', action='store_true', help='put patch at random location')
         parser.add_argument('--real_background', action='store_true', help='use real background instead of black background')
+        parser.add_argument('--use_acgan', action='store_true', help='add an auxilliary classification loss')
+        parser.add_argument('acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
 
 
         self.initialized = True

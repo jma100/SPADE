@@ -20,6 +20,8 @@ class Pix2pixDataset(BaseDataset):
 
     def initialize(self, opt):
         self.opt = opt
+        if self.opt.use_acgan:
+            self.mapping = self.load_mapping()
 
         label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
 
@@ -71,6 +73,11 @@ class Pix2pixDataset(BaseDataset):
         filename2_without_ext= os.path.splitext(os.path.basename(path2))[0]
         return filename1_without_ext == filename2_without_ext
 
+    def load_mapping(self):
+        with open(self.opt.mapping_path, 'r') as f:
+            data = json.load(f)
+        return data
+
     def __getitem__(self, index):
         # Label Image
         label_path = self.label_paths[index]
@@ -79,6 +86,12 @@ class Pix2pixDataset(BaseDataset):
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
+
+        # object class label
+        if self.opt.use_acgan:
+            object_class = self.mapping[label_path.split('/')[-3]]
+            object_tensor = torch.FloatTensor(1).fill_(object_class)
+            object_tensor = object_tensor.expand_as(label_tensor)
 
         # input image (real images)
         image_path = self.image_paths[index]
@@ -185,6 +198,9 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.real_background:
             input_dict['fg'] = fg_tensor
             input_dict['bg'] = bg_tensor
+        if self.opt.use_acgan:
+            input_dict['object'] = object_tensor
+            input_dict['object_class'] = object_class
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

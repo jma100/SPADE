@@ -33,13 +33,18 @@ class Pix2PixModel(torch.nn.Module):
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
+            if opt.use_acgan:
+                self.criterionACGAN = networks.ACLoss(
+                tensor=self.FloatTensor, opt=self.opt)
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        if self.opt.real_background:
+        if self.opt.real_background and self.opt.use_acgan:
+            input_semantics, real_image, fg, bg, object_class = self.preprocess_input(data)
+        elif self.opt.real_background:
             input_semantics, real_image, fg, bg = self.preprocess_input(data)
         else:
             input_semantics, real_image = self.preprocess_input(data)
@@ -53,7 +58,10 @@ class Pix2PixModel(torch.nn.Module):
                     input_semantics, real_image)
             return g_loss, generated
         elif mode == 'discriminator':
-            if self.opt.real_background:
+            if self.opt.real_background and self.opt.use_acgan:
+                d_loss = self.compute_discriminator_loss(
+                    input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
+            elif self.opt.real_background:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, fg=fg, bg=bg)
             else:
@@ -122,6 +130,9 @@ class Pix2PixModel(torch.nn.Module):
         data['label'] = data['label'].long()
         if self.opt.use_material:
             data['material'] = data['material'].long()
+        if self.opt.use_acgan:
+            data['object'] = data['object'].long()
+            print(data['object_class'].size())
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -137,6 +148,8 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background:
                 data['fg'] = data['fg'].cuda()
                 data['bg'] = data['bg'].cuda()
+            if self.opt.use_acgan:
+                data['object'] = data['object'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -162,18 +175,28 @@ class Pix2PixModel(torch.nn.Module):
             input_material_map = input_material.scatter_(1, material_map, 1.0)
             input_semantics = torch.cat((input_semantics, input_material_map), dim=1)
 
+        # create one-hot object label
+        if self.opt.use_acgan:
+            object_map = data['object']
+            input_object = self.FloatTensor(bs, self.opt.acgan_nc, h, w).zero_()
+            input_object_map = input_object.scatter_(1, object_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
+
         if self.opt.use_illumination:
             input_semantics = torch.cat((input_semantics, data['illumination']), dim=1)
 
         if self.opt.add_hint:
             input_semantics = torch.cat((input_semantics, data['hint']), dim=1)
 
+        if self.opt.real_background and self.opt.use_acgan:
+            return input_semantics, data['image'], data['fg'], data['bg'], data['object_class']
+
         if self.opt.real_background:
             return input_semantics, data['image'], data['fg'], data['bg']
 
         return input_semantics, data['image']
 
-    def compute_generator_loss(self, input_semantics, real_image, fg=None, bg=None):
+    def compute_generator_loss(self, input_semantics, real_image, fg=None, bg=None, object_class=None):
         G_losses = {}
 
         fake_image, KLD_loss = self.generate_fake(
@@ -182,12 +205,18 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
 
-        pred_fake, pred_real = self.discriminate(
-            input_semantics, fake_image, real_image)
+        if self.opt.use_acgan:
+            pred_fake, pred_real, class_fake, class_real = self.discriminate(
+                input_semantics, fake_image, real_image)
+        else:
+            pred_fake, pred_real = self.discriminate(
+                input_semantics, fake_image, real_image)
 
         G_losses['GAN'] = self.criterionGAN(pred_fake, True,
                                             for_discriminator=False)
 
+        if self.opt.use_acgan:
+            G_losses['ACLoss'] = self.criterionACGAN(class_fake, object_class) * self.opt.lambda_acgan
         if not self.opt.no_ganFeat_loss:
             num_D = len(pred_fake)
             GAN_Feat_loss = self.FloatTensor(1).fill_(0)
@@ -206,20 +235,27 @@ class Pix2PixModel(torch.nn.Module):
 
         return G_losses, fake_image
 
-    def compute_discriminator_loss(self, input_semantics, real_image, fg=None, bg=None):
+    def compute_discriminator_loss(self, input_semantics, real_image, fg=None, bg=None, object_class=None):
         D_losses = {}
         with torch.no_grad():
             fake_image, _ = self.generate_fake(input_semantics, real_image, fg=fg, bg=bg)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
-        pred_fake, pred_real = self.discriminate(
-            input_semantics, fake_image, real_image)
+        if self.opt.use_acgan:
+            pred_fake, pred_real, class_fake, class_real = self.discriminate(
+                input_semantics, fake_image, real_image)
+        else:
+            pred_fake, pred_real = self.discriminate(
+                input_semantics, fake_image, real_image)
 
         D_losses['D_Fake'] = self.criterionGAN(pred_fake, False,
                                                for_discriminator=True)
         D_losses['D_real'] = self.criterionGAN(pred_real, True,
                                                for_discriminator=True)
+        if self.opt.use_acgan:
+            D_losses['D_class_fake'] = self.criterionACGAN(class_fake, object_class) * self.opt.lambda_acgan
+            D_losses['D_class_real'] = self.criterionACGAN(class_real, object_class) * self.opt.lambda_acgan
 
         return D_losses
 
