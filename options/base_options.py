@@ -75,7 +75,8 @@ class BaseOptions():
         parser.add_argument('--random_hint', action='store_true', help='put patch at random location')
         parser.add_argument('--real_background', action='store_true', help='use real background instead of black background')
         parser.add_argument('--use_acgan', action='store_true', help='add an auxilliary classification loss')
-        parser.add_argument('acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
+        parser.add_argument('--acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
+        parser.add_argument('--no_background', action='store_true', help='use black background')
 
 
         self.initialized = True
@@ -174,7 +175,8 @@ class BaseOptions():
             (1 if opt.use_depth else 0) + \
             (opt.material_nc if opt.use_material else 0) + \
             (1 if opt.use_illumination else 0) + \
-            (3 if opt.add_hint else 0)
+            (3 if opt.add_hint else 0) + \
+            (opt.acgan_nc if opt.use_acgan else 0)
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')

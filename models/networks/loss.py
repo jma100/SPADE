@@ -7,6 +7,44 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from models.networks.architecture import VGG19
+import numpy as np
+
+
+class ACLoss(nn.Module):
+    def __init__(self, tensor=torch.FloatTensor, opt=None):
+        super(ACLoss, self).__init__()
+        self.label_tensor = None
+        self.Tensor = tensor
+
+    def get_target_tensor(self, input, target_label):
+        lst = target_label.tolist()
+        lst += lst
+        bs, c, h, w = input.size()
+        gt = np.zeros((bs, c, h, w)).astype(float)
+        for i, label in enumerate(lst):
+            gt[i, :, :, :] = label
+        self.label_tensor = self.Tensor(gt)
+        self.label_tensor.requires_grad_(False)
+        return self.label_tensor
+
+    def loss(self, input, target_label):
+        target_tensor = self.get_target_tensor(input, target_label)
+        loss = F.binary_cross_entropy_with_logits(input, target_tensor)
+        return loss
+
+    def __call__(self, input, target_label):
+        if isinstance(input, list):
+            loss = 0
+            for pred_i in input:
+                if isinstance(pred_i, list):
+                    pred_i = pred_i[-1]
+                loss_tensor = self.loss(pred_i, target_label)
+                bs = 1 if len(loss_tensor.size()) == 0 else loss_tensor.size(0)
+                new_loss = torch.mean(loss_tensor.view(bs, -1), dim=1)
+                loss += new_loss
+            return loss / len(input)
+        else:
+            return self.loss(input, target_label)
 
 
 # Defines the GAN loss which uses either LSGAN or the regular GAN.

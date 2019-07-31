@@ -52,14 +52,21 @@ class MultiscaleDiscriminator(BaseNetwork):
     # The final result is of size opt.num_D x opt.n_layers_D
     def forward(self, input):
         result = []
+        if self.opt.use_acgan:
+            class_result = []
         get_intermediate_features = not self.opt.no_ganFeat_loss
         for name, D in self.named_children():
-            out = D(input)
+            if self.opt.use_acgan:
+                out, pred_class = D(input)
+                class_result.append(pred_class)
+            else:
+                out = D(input)
             if not get_intermediate_features:
                 out = [out]
             result.append(out)
             input = self.downsample(input)
-
+        if self.opt.use_acgan:
+            return result, class_result
         return result
 
 
@@ -98,6 +105,8 @@ class NLayerDiscriminator(BaseNetwork):
         # We divide the layers into groups to extract intermediate layer outputs
         for n in range(len(sequence)):
             self.add_module('model' + str(n), nn.Sequential(*sequence[n]))
+#        self.adv_layer = nn.Conv2d(nf, 1, kernel_size=kw, stride=1, padding=padw)
+        self.aux_layer = nn.Conv2d(nf, 1, kernel_size=kw, stride=1, padding=padw)
 
     def compute_D_input_nc(self, opt):
         input_nc = opt.label_nc + opt.output_nc
@@ -113,15 +122,36 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += 1
         if opt.add_hint:
             input_nc += 3
+        if opt.use_acgan:
+            input_nc += opt.acgan_nc
         return input_nc
 
     def forward(self, input):
         results = [input]
+        num = len(list(self.children()))
+        counter = 0
         for submodel in self.children():
+            if counter == num-1:
+                continue
             intermediate_output = submodel(results[-1])
             results.append(intermediate_output)
+            counter += 1
+
+#        pred_real_fake = self.adv_layer(results[-1])
+        if self.opt.use_acgan:
+            pred_object = self.aux_layer(results[-2])
+
+#        pred_object = None
+#        results.append(pred_real_fake)
 
         get_intermediate_features = not self.opt.no_ganFeat_loss
+
+        if self.opt.use_acgan:
+            if get_intermediate_features:
+                return results[1:], pred_object
+            else:
+                return results[-1], pred_object
+
         if get_intermediate_features:
             return results[1:]
         else:

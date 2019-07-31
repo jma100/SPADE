@@ -10,6 +10,7 @@ import os
 import torch
 import numpy as np
 import random
+import json
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
@@ -22,8 +23,9 @@ class Pix2pixDataset(BaseDataset):
         self.opt = opt
         if self.opt.use_acgan:
             self.mapping = self.load_mapping()
-
-        label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
+            label_paths, image_paths, instance_paths = self.get_paths(opt)
+        else:
+            label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -141,7 +143,10 @@ class Pix2pixDataset(BaseDataset):
             fg_tensor = image_tensor * label_tensor.long().float()
             # background, combined with generated foreground
             bg_tensor = image_tensor * (1 - label_tensor.long()).float()
-            
+
+        if self.opt.no_background:
+            # foreground, feed into encoder
+            fg_tensor = image_tensor * label_tensor.long().float()            
 
         if self.opt.add_hint:
             hint_tensor = image_tensor.clone()
@@ -201,6 +206,8 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.use_acgan:
             input_dict['object'] = object_tensor
             input_dict['object_class'] = object_class
+        if self.opt.no_background:
+            input_dict['image'] = fg_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

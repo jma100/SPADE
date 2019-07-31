@@ -44,13 +44,21 @@ class Pix2PixModel(torch.nn.Module):
     def forward(self, data, mode):
         if self.opt.real_background and self.opt.use_acgan:
             input_semantics, real_image, fg, bg, object_class = self.preprocess_input(data)
+        elif self.opt.no_background and self.opt.use_acgan:
+            input_semantics, real_image, object_class = self.preprocess_input(data)
         elif self.opt.real_background:
             input_semantics, real_image, fg, bg = self.preprocess_input(data)
         else:
             input_semantics, real_image = self.preprocess_input(data)
 
         if mode == 'generator':
-            if self.opt.real_background:
+            if self.opt.real_background and self.opt.use_acgan:
+                g_loss, generated = self.compute_generator_loss(
+                    input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
+            elif self.opt.no_background and self.opt.use_acgan:
+                g_loss, generated = self.compute_generator_loss(
+                    input_semantics, real_image, object_class=object_class)
+            elif self.opt.real_background:
                 g_loss, generated = self.compute_generator_loss(
                     input_semantics, real_image, fg=fg, bg=bg)
             else:
@@ -61,6 +69,10 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background and self.opt.use_acgan:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
+            elif self.opt.no_background and self.opt.use_acgan:
+                d_loss = self.compute_discriminator_loss(
+                    input_semantics, real_image, object_class=object_class)
+
             elif self.opt.real_background:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, fg=fg, bg=bg)
@@ -132,7 +144,6 @@ class Pix2PixModel(torch.nn.Module):
             data['material'] = data['material'].long()
         if self.opt.use_acgan:
             data['object'] = data['object'].long()
-            print(data['object_class'].size())
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -190,6 +201,9 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.real_background and self.opt.use_acgan:
             return input_semantics, data['image'], data['fg'], data['bg'], data['object_class']
+
+        if self.opt.no_background and self.opt.use_acgan:
+            return input_semantics, data['image'], data['object_class']
 
         if self.opt.real_background:
             return input_semantics, data['image'], data['fg'], data['bg']
@@ -297,11 +311,16 @@ class Pix2PixModel(torch.nn.Module):
         # So both fake and real images are fed to D all at once.
         fake_and_real = torch.cat([fake_concat, real_concat], dim=0)
 
-        discriminator_out = self.netD(fake_and_real)
+        if self.opt.use_acgan:
+            discriminator_out, pred_class = self.netD(fake_and_real)
+            pred_fake, pred_real = self.divide_pred(discriminator_out)
+            class_fake, class_real = pred_class
+            return pred_fake, pred_real, class_fake, class_real
+        else:
+            discriminator_out = self.netD(fake_and_real)
+            pred_fake, pred_real = self.divide_pred(discriminator_out)
+            return pred_fake, pred_real
 
-        pred_fake, pred_real = self.divide_pred(discriminator_out)
-
-        return pred_fake, pred_real
 
     # Take the prediction of fake and real images from the combined batch
     def divide_pred(self, pred):
