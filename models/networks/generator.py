@@ -49,6 +49,9 @@ class SPADEGenerator(BaseNetwork):
         self.up_2 = SPADEResnetBlock(4 * nf, 2 * nf, opt)
         self.up_3 = SPADEResnetBlock(2 * nf, 1 * nf, opt)
 
+        self.enhance_1 = SPADEResnetBlock(self.opt.output_nc, self.opt.output_nc, opt)
+        self.enhance_2 = SPADEResnetBlock(self.opt.output_nc, self.opt.output_nc, opt)
+
         final_nc = nf
 
         if opt.num_upsampling_layers == 'most':
@@ -75,7 +78,7 @@ class SPADEGenerator(BaseNetwork):
 
         return sw, sh
 
-    def forward(self, input, z=None):
+    def forward(self, input, z=None, bg=None):
         seg = input
 
         if self.opt.use_vae:
@@ -121,7 +124,9 @@ class SPADEGenerator(BaseNetwork):
 
         x = self.conv_img(F.leaky_relu(x, 2e-1))
         x = F.tanh(x)
-
+        x = bg.cuda() + x * (bg == 0).float().cuda()
+        x = self.enhance_1(x, seg)
+        x = self.enhance_2(x, seg)
         return x
 
 

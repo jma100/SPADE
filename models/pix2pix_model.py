@@ -239,9 +239,11 @@ class Pix2PixModel(torch.nn.Module):
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 
-        fake_image = self.netG(input_semantics, z=z)
         if self.opt.real_background:
+            fake_image = self.netG(input_semantics, z=z, bg=bg)
             fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
+        else:
+            fake_image = self.netG(input_semantics, z=z)
 
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"
