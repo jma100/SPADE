@@ -129,6 +129,10 @@ class Pix2pixDataset(BaseDataset):
             # background, combined with generated foreground
             bg_tensor = image_tensor * (1 - label_tensor.long()).float()
             
+        if self.opt.no_background:
+            # foreground, feed into encoder
+            fg_tensor = image_tensor * label_tensor.long().float()
+            
 
         if self.opt.add_hint:
             hint_tensor = image_tensor.clone()
@@ -185,6 +189,8 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.real_background:
             input_dict['fg'] = fg_tensor
             input_dict['bg'] = bg_tensor
+        if self.opt.no_background:
+            input_dict['image'] = fg_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
