@@ -19,17 +19,17 @@ class ACLoss(nn.Module):
     def get_target_tensor(self, input, target_label):
         lst = target_label.tolist()
         lst += lst
-        bs, c, h, w = input.size()
-        gt = np.zeros((bs, c, h, w)).astype(float)
+        bs, c, area = input.size()
+        gt = np.zeros((bs, area)).astype(int)
         for i, label in enumerate(lst):
-            gt[i, :, :, :] = label
-        self.label_tensor = self.Tensor(gt)
+            gt[i, :] = label
+        self.label_tensor = torch.cuda.LongTensor(gt)
         self.label_tensor.requires_grad_(False)
         return self.label_tensor
 
     def loss(self, input, target_label):
         target_tensor = self.get_target_tensor(input, target_label)
-        loss = F.binary_cross_entropy_with_logits(input, target_tensor)
+        loss = nn.CrossEntropyLoss()(input, target_tensor)
         return loss
 
     def __call__(self, input, target_label):

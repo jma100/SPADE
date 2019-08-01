@@ -106,7 +106,7 @@ class NLayerDiscriminator(BaseNetwork):
         for n in range(len(sequence)):
             self.add_module('model' + str(n), nn.Sequential(*sequence[n]))
 #        self.adv_layer = nn.Conv2d(nf, 1, kernel_size=kw, stride=1, padding=padw)
-        self.aux_layer = nn.Conv2d(nf, 1, kernel_size=kw, stride=1, padding=padw)
+        self.aux_layer = nn.Conv2d(nf, opt.acgan_nc, kernel_size=kw, stride=1, padding=padw)
 
     def compute_D_input_nc(self, opt):
         input_nc = opt.label_nc + opt.output_nc
@@ -139,8 +139,9 @@ class NLayerDiscriminator(BaseNetwork):
 
 #        pred_real_fake = self.adv_layer(results[-1])
         if self.opt.use_acgan:
-            pred_object = self.aux_layer(results[-2])
-
+            pred_object = nn.Softmax(dim=1)(self.aux_layer(results[-2]))
+            bs, c, h, w = pred_object.size()
+            pred_object = pred_object.view(bs, c, h*w)
 #        pred_object = None
 #        results.append(pred_real_fake)
 
