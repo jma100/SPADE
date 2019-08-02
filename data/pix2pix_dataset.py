@@ -88,6 +88,9 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
+        if self.opt.grayscale:
+            image = image.convert('L')
+            image = image.convert('RGB')
 
         # material
         if self.opt.use_material:
