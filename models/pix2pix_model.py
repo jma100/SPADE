@@ -241,7 +241,6 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.real_background:
             fake_image = self.netG(input_semantics, z=z, bg=bg)
-            fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
         else:
             fake_image = self.netG(input_semantics, z=z)
 

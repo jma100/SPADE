@@ -124,9 +124,10 @@ class SPADEGenerator(BaseNetwork):
 
         x = self.conv_img(F.leaky_relu(x, 2e-1))
         x = F.tanh(x)
-        x = bg.cuda() + x * (bg == 0).float().cuda()
-        x = self.enhance_1(x, seg)
-        x = self.enhance_2(x, seg)
+        if self.opt.real_background:
+            x = bg.cuda() + x * (bg == 0).float().cuda()
+            x = self.enhance_1(x, seg)
+            x = self.enhance_2(x, seg)
         return x
 
 
