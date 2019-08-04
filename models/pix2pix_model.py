@@ -137,6 +137,9 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background:
                 data['fg'] = data['fg'].cuda()
                 data['bg'] = data['bg'].cuda()
+            if self.opt.position_input:
+                data['pos_x_input'] = data['pos_x_input'].cuda()
+                data['pos_y_input'] = data['pos_y_input'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -151,6 +154,9 @@ class Pix2PixModel(torch.nn.Module):
             inst_map = data['instance']
             instance_edge_map = self.get_edges(inst_map)
             input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
+
+        if self.opt.position_input:
+            input_semantics = torch.cat((input_semantics, data['pos_x_input'].float(), data['pos_y_input'].float()), dim=1)
 
         if self.opt.use_depth:
             input_semantics = torch.cat((input_semantics, data['depth']),dim=1)
