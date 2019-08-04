@@ -80,6 +80,13 @@ class Pix2pixDataset(BaseDataset):
         label_tensor = transform_label(label) * 255.0
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
 
+        # input position
+        if self.opt.position_input:
+            _, h, w = label_tensor.size()
+            pos_x = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+            pos_y = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
+        
+
         # input image (real images)
         image_path = self.image_paths[index]
         if not self.opt.no_pairing_check:
@@ -194,6 +201,10 @@ class Pix2pixDataset(BaseDataset):
             input_dict['bg'] = bg_tensor
         if self.opt.no_background:
             input_dict['image'] = fg_tensor
+        if self.opt.position_input:
+            input_dict['pos_x_input'] = pos_x
+            input_dict['pos_y_input'] = pos_y
+            
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

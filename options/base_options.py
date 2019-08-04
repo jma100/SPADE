@@ -76,6 +76,8 @@ class BaseOptions():
         parser.add_argument('--real_background', action='store_true', help='use real background instead of black background')
         parser.add_argument('--no_background', action='store_true', help='use black background')
         parser.add_argument('--grayscale', action='store_true', help='use black background')
+        parser.add_argument('--position_input', action='store_true', help='input position along with semantics into SPADE')
+        parser.add_argument('--position_encode', action='store_true', help='input position alont with real image into encoder')
 
         self.initialized = True
         return parser
@@ -173,7 +175,7 @@ class BaseOptions():
             (1 if opt.use_depth else 0) + \
             (opt.material_nc if opt.use_material else 0) + \
             (1 if opt.use_illumination else 0) + \
-            (3 if opt.add_hint else 0)
+            (3 if opt.add_hint else 0) + (2 if opt.position_input else 0)
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')

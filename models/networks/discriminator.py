@@ -113,6 +113,8 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += 1
         if opt.add_hint:
             input_nc += 3
+        if opt.position_input:
+            input_nc += 2
         return input_nc
 
     def forward(self, input):
