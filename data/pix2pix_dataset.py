@@ -98,6 +98,9 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.grayscale:
             image = image.convert('L')
             image = image.convert('RGB')
+        if self.opt.use_image != '':
+            encode = Image.open(self.opt.use_image)
+            encode = encode.convert('RGB')
 
         # material
         if self.opt.use_material:
@@ -132,6 +135,9 @@ class Pix2pixDataset(BaseDataset):
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
+
+        if self.opt.use_image != '':
+            encode_tensor = transform_image(encode)
 
         if self.opt.real_background:
             # foreground, feed into encoder
@@ -204,7 +210,8 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.position_input:
             input_dict['pos_x_input'] = pos_x
             input_dict['pos_y_input'] = pos_y
-            
+        if self.opt.use_image != '':
+            input_dict['encode'] = encode_tensor    
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

@@ -39,7 +39,10 @@ class Pix2PixModel(torch.nn.Module):
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        if self.opt.real_background:
+        encode = ''
+        if self.opt.use_image != '':
+            input_semantics, real_image, encode = self.preprocess_input(data)
+        elif self.opt.real_background:
             input_semantics, real_image, fg, bg = self.preprocess_input(data)
         else:
             input_semantics, real_image = self.preprocess_input(data)
@@ -65,7 +68,7 @@ class Pix2PixModel(torch.nn.Module):
             return mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image)
+                fake_image, _ = self.generate_fake(input_semantics, real_image, encode=encode)
             return fake_image
         else:
             raise ValueError("|mode| is invalid")
@@ -140,6 +143,8 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.position_input:
                 data['pos_x_input'] = data['pos_x_input'].cuda()
                 data['pos_y_input'] = data['pos_y_input'].cuda()
+            if self.opt.use_image != '':
+                data['encode'] = data['encode'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -174,6 +179,8 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.add_hint:
             input_semantics = torch.cat((input_semantics, data['hint']), dim=1)
 
+        if self.opt.use_image != '':
+            return input_semantics, data['image'],data['encode']
         if self.opt.real_background:
             return input_semantics, data['image'], data['fg'], data['bg']
 
@@ -234,11 +241,14 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False, fg = None, bg=None):
+    def generate_fake(self, input_semantics, real_image, compute_kld_loss=False, fg = None, bg=None, encode=None):
         z = None
         KLD_loss = None
         if self.opt.use_vae:
-            if self.opt.real_background:
+            if self.opt.use_image != '':
+                z, mu, logvar = self.encode_z(encode)
+                print('yes')
+            elif self.opt.real_background:
                 z, mu, logvar = self.encode_z(fg)
             else:
                 z, mu, logvar = self.encode_z(real_image)
