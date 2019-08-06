@@ -9,6 +9,7 @@ import util.util as util
 import os
 import torch
 import numpy as np
+import json
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
@@ -19,11 +20,12 @@ class Pix2pixDataset(BaseDataset):
 
     def initialize(self, opt):
         self.opt = opt
+        if opt.use_acgan:
+            self.mapping = self.load_mapping()
+        paths = self.get_paths(opt)
+        label_paths, image_paths, instance_paths = paths['label'], paths['image'], paths['instance']        
 
-        if not opt.use_depth:
-            label_paths, image_paths, instance_paths = self.get_paths(opt)
-        else:
-            label_paths, image_paths, instance_paths, depth_paths = self.get_paths(opt)
+
 
         util.natural_sort(label_paths)
         util.natural_sort(image_paths)
@@ -63,6 +65,11 @@ class Pix2pixDataset(BaseDataset):
         filename2_without_ext = os.path.splitext(os.path.basename(path2))[0]
         return filename1_without_ext == filename2_without_ext
 
+    def load_mapping(self):
+        with open(self.opt.mapping_path, 'r') as f:
+            data = json.load(f)
+        return data
+
     def __getitem__(self, index):
         # Label Image
         label_path = self.label_paths[index]
@@ -71,6 +78,12 @@ class Pix2pixDataset(BaseDataset):
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
+
+        # object class label
+        if self.opt.use_acgan:
+            object_class = self.mapping[label_path.split('/')[-3]]
+            object_tensor = torch.FloatTensor(1).fill_(object_class)
+            object_tensor = object_tensor.expand_as(label_tensor)
 
         # input image (real images)
         image_path = self.image_paths[index]
@@ -108,20 +121,31 @@ class Pix2pixDataset(BaseDataset):
             else:
                 instance_tensor = transform_label(instance)
 
-        if self.opt.use_depth:
-            input_dict = {'label': label_tensor,
-                      'instance': instance_tensor,
-                      'image': image_tensor,
-                      'path': image_path,
-                      'depth': depth_tensor
-                      }
-        else:
-            input_dict = {'label': label_tensor,
-                      'instance': instance_tensor,
-                      'image': image_tensor,
-                      'path': image_path,
-                      }
+        if self.opt.real_background:
+            # foreground, feed into encoder
+            fg_tensor = image_tensor * label_tensor.long().float()
+            # background, combined with generated foreground
+            bg_tensor = image_tensor * (1 - label_tensor.long()).float()
 
+        if self.opt.no_background:
+            # foreground, feed into encoder
+            fg_tensor = image_tensor * label_tensor.long().float()  
+
+        input_dict = {'label': label_tensor,
+                      'instance': instance_tensor,
+                      'image': image_tensor,
+                      'path': image_path,
+                      }
+        if self.opt.use_depth:
+            input_dict['depth'] = depth_tensor
+        if self.opt.use_acgan:
+            input_dict['object'] = object_tensor
+            input_dict['object_class'] = object_class
+        if self.opt.real_background:
+            input_dict['fg'] = fg_tensor
+            input_dict['bg'] = bg_tensor
+        if self.opt.no_background:
+            input_dict['image'] = fg_tensor
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
 

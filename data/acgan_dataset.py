@@ -15,6 +15,8 @@ class ACGanDataset(Pix2pixDataset):
         parser.set_defaults(crop_size=128)
         parser.set_defaults(display_winsize=128)
         parser.set_defaults(label_nc=1)
+        parser.set_defaults(nThreads=16)
+        parser.set_defaults(use_vae=True)
         parser.set_defaults(contain_dontcare_label=True)
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
@@ -38,7 +40,8 @@ class ACGanDataset(Pix2pixDataset):
                 label_paths.append(p)
 
         instance_paths = [] # don't use instance map for ade20k
-        return label_paths, image_paths, instance_paths
+        paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
+        return paths
 
     ## In ADE20k, 'unknown' label is of value 0.
     ## Change the 'unknown' label to 255 to match other datasets.

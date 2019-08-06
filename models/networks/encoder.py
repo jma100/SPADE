@@ -16,6 +16,11 @@ class ConvEncoder(BaseNetwork):
     def __init__(self, opt):
         super().__init__()
 
+        if opt.dataset_mode == 'ade20kobj' or opt.dataset_mode == 'acgan':
+            self.encode_size = 128
+        else:
+            self.encode_size = 256
+
         kw = 3
         pw = int(np.ceil((kw - 1.0) / 2))
         ndf = opt.ngf
@@ -29,15 +34,15 @@ class ConvEncoder(BaseNetwork):
             self.layer6 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
 
         self.so = s0 = 4
-        self.fc_mu = nn.Linear(ndf * 8 * s0 * s0, 256)
-        self.fc_var = nn.Linear(ndf * 8 * s0 * s0, 256)
+        self.fc_mu = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
+        self.fc_var = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
 
         self.actvn = nn.LeakyReLU(0.2, False)
         self.opt = opt
 
     def forward(self, x):
-        if x.size(2) != 256 or x.size(3) != 256:
-            x = F.interpolate(x, size=(256, 256), mode='bilinear')
+        if x.size(2) != self.encode_size or x.size(3) != self.encode_size:
+            x = F.interpolate(x, size=(self.encode_size, self.encode_size), mode='bilinear')
 
         x = self.layer1(x)
         x = self.layer2(self.actvn(x))

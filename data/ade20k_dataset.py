@@ -43,8 +43,8 @@ class ADE20KDataset(Pix2pixDataset):
 
         instance_paths = []  # don't use instance map for ade20k
 
-        return label_paths, image_paths, instance_paths
-
+        paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
+        return paths
     # In ADE20k, 'unknown' label is of value 0.
     # Change the 'unknown' label to the last label to match other datasets.
     def postprocess(self, input_dict):
