@@ -75,8 +75,9 @@ class BaseOptions():
         parser.add_argument('--random_hint', action='store_true', help='put patch at random location')
         parser.add_argument('--real_background', action='store_true', help='use real background instead of black background')
         parser.add_argument('--use_acgan', action='store_true', help='add an auxilliary classification loss')
-        parser.add_argument('--acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
+        parser.add_argument('--acgan_nc', type=int, default=0, help='# of classes for discriminator classification')
         parser.add_argument('--no_background', action='store_true', help='use black background')
+        parser.add_argument('--margin', type=int, default=16, help='margin added when cropping object')
 
         self.initialized = True
         return parser
@@ -169,7 +170,7 @@ class BaseOptions():
         # Set semantic_nc based on the option.
         # This will be convenient in many places
         opt.semantic_nc = opt.label_nc + \
-            (1 if opt.contain_dontcare_label else 0) + \
+            (1 if opt.contain_dontcare_label and not opt.is_object else 0) + \
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \
             (opt.material_nc if opt.use_material else 0) + \

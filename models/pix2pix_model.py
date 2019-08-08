@@ -83,10 +83,11 @@ class Pix2PixModel(torch.nn.Module):
         return optimizer_G, optimizer_D
 
     def save(self, epoch):
-        util.save_network(self.netG, 'G', epoch, self.opt)
-        util.save_network(self.netD, 'D', epoch, self.opt)
+        postfix = '_object' if self.opt.is_object else '_global'
+        util.save_network(self.netG, 'G'+postfix, epoch, self.opt)
+        util.save_network(self.netD, 'D'+postfix, epoch, self.opt)
         if self.opt.use_vae:
-            util.save_network(self.netE, 'E', epoch, self.opt)
+            util.save_network(self.netE, 'E'+postfix, epoch, self.opt)
 
     ############################################################################
     # Private helper methods

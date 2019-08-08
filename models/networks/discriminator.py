@@ -52,13 +52,13 @@ class MultiscaleDiscriminator(BaseNetwork):
     # The final result is of size opt.num_D x opt.n_layers_D
     def forward(self, input):
         result = []
-        if self.opt.use_acgan:
+        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
             class_result = []
         get_intermediate_features = not self.opt.no_ganFeat_loss
         for name, D in self.named_children():
             out = D(input)
 
-            if self.opt.use_acgan:
+            if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
                 out, pred_class = D(input)
                 class_result.append(pred_class)
             else:
@@ -69,7 +69,7 @@ class MultiscaleDiscriminator(BaseNetwork):
             result.append(out)
             input = self.downsample(input)
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
             return result, class_result
 
         return result
@@ -115,13 +115,13 @@ class NLayerDiscriminator(BaseNetwork):
 
     def compute_D_input_nc(self, opt):
         input_nc = opt.label_nc + opt.output_nc
-        if opt.contain_dontcare_label:
+        if opt.contain_dontcare_label and not opt.is_object:
             input_nc += 1
         if not opt.no_instance:
             input_nc += 1
         if opt.use_depth:
             input_nc += 1
-        if opt.use_acgan:
+        if opt.use_acgan or opt.is_object:
             input_nc += opt.acgan_nc
         return input_nc
 
@@ -136,14 +136,14 @@ class NLayerDiscriminator(BaseNetwork):
             results.append(intermediate_output)
             counter += 1
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
             pred_object = nn.Softmax(dim=1)(self.aux_layer(results[-2]))
             bs, c, h, w = pred_object.size()
             pred_object = pred_object.view(bs, c, h*w)
 
         get_intermediate_features = not self.opt.no_ganFeat_loss
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
             if get_intermediate_features:
                 return results[1:], pred_object
             else:

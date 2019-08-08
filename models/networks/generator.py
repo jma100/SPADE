@@ -17,7 +17,7 @@ class SPADEGenerator(BaseNetwork):
     def modify_commandline_options(parser, is_train):
         parser.set_defaults(norm_G='spectralspadesyncbatch3x3')
         parser.add_argument('--num_upsampling_layers',
-                            choices=('normal', 'more', 'most'), default='normal',
+                            choices=('less','normal', 'more', 'most'), default='normal',
                             help="If 'more', adds upsampling layer between the two middle resnet blocks. If 'most', also add one more upsampling + resnet layer at the end of the generator")
 
         return parser
@@ -60,7 +60,9 @@ class SPADEGenerator(BaseNetwork):
         self.up = nn.Upsample(scale_factor=2)
 
     def compute_latent_vector_size(self, opt):
-        if opt.num_upsampling_layers == 'normal':
+        if opt.num_upsampling_layers == 'less':
+            num_up_layers = 4
+        elif opt.num_upsampling_layers == 'normal':
             num_up_layers = 5
         elif opt.num_upsampling_layers == 'more':
             num_up_layers = 6
@@ -70,7 +72,10 @@ class SPADEGenerator(BaseNetwork):
             raise ValueError('opt.num_upsampling_layers [%s] not recognized' %
                              opt.num_upsampling_layers)
 
-        sw = opt.crop_size // (2**num_up_layers)
+        if opt.is_object:
+            sw = opt.obj_crop_size // (2**num_up_layers)
+        else:
+            sw = opt.crop_size // (2**num_up_layers)
         sh = round(sw / opt.aspect_ratio)
 
         return sw, sh
@@ -139,7 +144,7 @@ class Pix2PixHDGenerator(BaseNetwork):
 
     def __init__(self, opt):
         super().__init__()
-        input_nc = opt.label_nc + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = opt.label_nc + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
 
 
 

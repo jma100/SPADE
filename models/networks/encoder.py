@@ -16,7 +16,7 @@ class ConvEncoder(BaseNetwork):
     def __init__(self, opt):
         super().__init__()
 
-        if opt.dataset_mode == 'ade20kobj' or opt.dataset_mode == 'acgan':
+        if opt.is_object or opt.dataset_mode == 'ade20kobj' or opt.dataset_mode == 'acgan':
             self.encode_size = 128
         else:
             self.encode_size = 256

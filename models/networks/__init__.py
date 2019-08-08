@@ -61,3 +61,7 @@ def define_E(opt):
     # there exists only one encoder type
     netE_cls = find_network_using_name('conv', 'encoder')
     return create_network(netE_cls, opt)
+
+def define_A(opt):
+    netA_cls = find_network_using_name('', 'assembler')
+    return create_network(netA_cls, opt)

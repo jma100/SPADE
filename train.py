@@ -21,7 +21,7 @@ print(' '.join(sys.argv))
 dataloader = data.create_dataloader(opt)
 
 # create trainer for our model
-trainer = Pix2PixTrainer(opt)
+merge_trainer = MergeTrainer(opt) # implement
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader))
@@ -35,12 +35,30 @@ for epoch in iter_counter.training_epochs():
         iter_counter.record_one_iteration()
 
         # Training
-        # train generator
-        if i % opt.D_steps_per_G == 0:
-            trainer.run_generator_one_step(data_i)
+        # train each object
+        for obj, data_obj in data_i.iteritems():
+            if obj == 'global':
+                continue
+            for instance, data_instance in data_obj.iteritems():
+                if instance != obj +'_%03d' % 0:
+                    continue
+                # train object generator
+                if i % opt.D_steps_per_G == 0:
+                    object_trainer.run_generator_one_step(data_instance)
+                    data_instance['generated'] = object_trainer.generated
+                # train object discriminator
+                object_trainer.run_discriminator_one_step(data_instance)
 
-        # train discriminator
-        trainer.run_discriminator_one_step(data_i)
+        # train global generator
+        if i % opt.D_steps_per_G == 0:
+            global_trainer.run_generator_one_step(data_i['global'])
+            data_i['global']['generated'] = global_trainer.generated
+
+        # train global discriminator
+        global_trainer.run_discriminator_one_step(data_i['global'])
+
+        # train overall discriminator
+        merge_trainer.run_overall_one_step(data_i['global'])
 
         # Visualizations
         if iter_counter.needs_printing():
@@ -72,3 +90,4 @@ for epoch in iter_counter.training_epochs():
         trainer.save(epoch)
 
 print('Training was successfully finished.')
+

@@ -22,25 +22,34 @@ class BaseDataset(data.Dataset):
         pass
 
 
-def get_params(opt, size):
+def get_params(opt, size, use_object=False, use_flip=None):
     w, h = size
     new_h = h
     new_w = w
+    if use_object:
+        load_size = opt.obj_load_size
+        crop_size = opt.obj_crop_size
+        assert use_flip != None
+    else:
+        load_size = opt.load_size
+        crop_size = opt.crop_size
     if opt.preprocess_mode == 'resize_and_crop':
-        new_h = new_w = opt.load_size
+        new_h = new_w = load_size
     elif opt.preprocess_mode == 'scale_width_and_crop':
-        new_w = opt.load_size
-        new_h = opt.load_size * h // w
+        new_w = load_size
+        new_h = load_size * h // w
     elif opt.preprocess_mode == 'scale_shortside_and_crop':
         ss, ls = min(w, h), max(w, h)  # shortside and longside
         width_is_shorter = w == ss
-        ls = int(opt.load_size * ls / ss)
+        ls = int(load_size * ls / ss)
         new_w, new_h = (ss, ls) if width_is_shorter else (ls, ss)
 
-    x = random.randint(0, np.maximum(0, new_w - opt.crop_size))
-    y = random.randint(0, np.maximum(0, new_h - opt.crop_size))
+    x = random.randint(0, np.maximum(0, new_w - crop_size))
+    y = random.randint(0, np.maximum(0, new_h - crop_size))
 
     flip = random.random() > 0.5
+    if use_flip:
+        flip = use_flip
     return {'crop_pos': (x, y), 'flip': flip}
 
 
