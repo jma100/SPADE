@@ -42,23 +42,19 @@ class Pix2PixModel(torch.nn.Module):
     # can't parallelize custom functions, we branch to different
     # routines based on |mode|.
     def forward(self, data, mode):
-        input_dict = self.preprocess_input(data)
-        input_semantics, real_image = input_dict['label'], input_dict['image']
 
         if mode == 'generator':
-            g_loss, generated = self.compute_generator_loss(
-                input_semantics, real_image, input_dict)
+            g_loss, generated = self.compute_generator_loss(data)
             return g_loss, generated
         elif mode == 'discriminator':
-            d_loss = self.compute_discriminator_loss(
-                input_semantics, real_image, input_dict)
+            d_loss = self.compute_discriminator_loss(data)
             return d_loss
         elif mode == 'encode_only':
-            z, mu, logvar = self.encode_z(real_image)
+            z, mu, logvar = self.encode_z(data['image'])
             return z, mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image, input_dict)
+                fake_image, _ = self.generate_fake(data)
             return fake_image
         else:
             raise ValueError("|mode| is invalid")
@@ -107,65 +103,13 @@ class Pix2PixModel(torch.nn.Module):
 
         return netG, netD, netE
 
-    # preprocess the input, such as moving the tensors to GPUs and
-    # transforming the label map to one-hot encoding
-    # |data|: dictionary of the input data
 
-    def preprocess_input(self, data):
-        # move to GPU and change data types
-        data['label'] = data['label'].long()
-        if self.opt.use_acgan:
-            data['object'] = data['object'].long()
-        if self.use_gpu():
-            data['label'] = data['label'].cuda()
-            data['instance'] = data['instance'].cuda()
-            data['image'] = data['image'].cuda()
-            if self.opt.use_depth:
-                data['depth'] = data['depth'].cuda()
-            if self.opt.real_background:
-                data['fg'] = data['fg'].cuda()
-                data['bg'] = data['bg'].cuda()
-            if self.opt.use_acgan:
-                data['object'] = data['object'].cuda()
-
-        # create one-hot label map
-        label_map = data['label']
-        bs, _, h, w = label_map.size()
-        nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
-            else self.opt.label_nc
-        input_label = self.FloatTensor(bs, nc, h, w).zero_()
-        input_semantics = input_label.scatter_(1, label_map, 1.0)
-
-        # concatenate instance map if it exists
-        if not self.opt.no_instance:
-            inst_map = data['instance']
-            instance_edge_map = self.get_edges(inst_map)
-            input_semantics = torch.cat((input_semantics, instance_edge_map), dim=1)
-
-        if self.opt.use_depth:
-            input_semantics = torch.cat((input_semantics, data['depth']),dim=1)
-
-        # create one-hot object label
-        if self.opt.use_acgan:
-            object_map = data['object']
-            input_object = self.FloatTensor(bs, self.opt.acgan_nc, h, w).zero_()
-            input_object_map = input_object.scatter_(1, object_map, 1.0)
-            input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
-
-        input_dict = {'label': input_semantics, 'image': data['image']}
-        if self.opt.use_acgan:
-            input_dict['object_class'] = data['object_class']
-        if self.opt.real_background:
-            input_dict['fg'] = data['fg']
-            input_dict['bg'] = data['bg']
-        return input_dict
-
-    def compute_generator_loss(self, input_semantics, real_image, input_dict):
+    def compute_generator_loss(self, input_dict):
         G_losses = {}
 
-
+        input_semantics, real_image = input_dict['label'], input_dict['image']
         fake_image, KLD_loss = self.generate_fake(
-            input_semantics, real_image, input_dict, compute_kld_loss=self.opt.use_vae)
+            input_dict, compute_kld_loss=self.opt.use_vae)
 
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
@@ -202,10 +146,11 @@ class Pix2PixModel(torch.nn.Module):
 
         return G_losses, fake_image
 
-    def compute_discriminator_loss(self, input_semantics, real_image, input_dict):
+    def compute_discriminator_loss(self, input_dict):
         D_losses = {}
+        input_semantics, real_image = input_dict['label'], input_dict['image']
         with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image, input_dict)
+            fake_image, _ = self.generate_fake(input_dict)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -233,9 +178,10 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, input_dict, compute_kld_loss=False):
+    def generate_fake(self, input_dict, compute_kld_loss=False):
         z = None
         KLD_loss = None
+        real_image, input_semantics = input_dict['image'], input_dict['label']
         if self.opt.use_vae:
             if self.opt.real_background:
                 fg = input_dict['fg']

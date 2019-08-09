@@ -111,10 +111,11 @@ class NLayerDiscriminator(BaseNetwork):
         for n in range(len(sequence)):
             self.add_module('model' + str(n), nn.Sequential(*sequence[n]))
 
-        self.aux_layer = nn.Conv2d(nf, opt.acgan_nc, kernel_size=kw, stride=1, padding=padw)
+        if self.opt.use_acgan:
+            self.aux_layer = nn.Conv2d(nf, opt.acgan_nc, kernel_size=kw, stride=1, padding=padw)
 
     def compute_D_input_nc(self, opt):
-        input_nc = opt.label_nc + opt.output_nc
+        input_nc = (1 if opt.is_object else opt.label_nc) + opt.output_nc
         if opt.contain_dontcare_label and not opt.is_object:
             input_nc += 1
         if not opt.no_instance:
@@ -130,20 +131,20 @@ class NLayerDiscriminator(BaseNetwork):
         num = len(list(self.children()))
         counter = 0
         for submodel in self.children():
-            if counter == num-1:
+            if self.opt.use_acgan and counter == num-1:
                 continue
             intermediate_output = submodel(results[-1])
             results.append(intermediate_output)
             counter += 1
 
-        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
+        if self.opt.use_acgan:
             pred_object = nn.Softmax(dim=1)(self.aux_layer(results[-2]))
             bs, c, h, w = pred_object.size()
             pred_object = pred_object.view(bs, c, h*w)
 
         get_intermediate_features = not self.opt.no_ganFeat_loss
 
-        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
+        if self.opt.use_acgan:
             if get_intermediate_features:
                 return results[1:], pred_object
             else:

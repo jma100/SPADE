@@ -169,7 +169,7 @@ class BaseOptions():
 
         # Set semantic_nc based on the option.
         # This will be convenient in many places
-        opt.semantic_nc = opt.label_nc + \
+        opt.semantic_nc = (1 if opt.is_object else opt.label_nc) + \
             (1 if opt.contain_dontcare_label and not opt.is_object else 0) + \
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \

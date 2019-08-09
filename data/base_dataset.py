@@ -48,31 +48,37 @@ def get_params(opt, size, use_object=False, use_flip=None):
     y = random.randint(0, np.maximum(0, new_h - crop_size))
 
     flip = random.random() > 0.5
-    if use_flip:
+    if use_flip != None:
         flip = use_flip
     return {'crop_pos': (x, y), 'flip': flip}
 
 
-def get_transform(opt, params, method=Image.BICUBIC, normalize=True, toTensor=True):
+def get_transform(opt, params, method=Image.BICUBIC, normalize=True, toTensor=True, use_object=False):
     transform_list = []
+    if use_object:
+        load_size = opt.obj_load_size
+        crop_size = opt.obj_crop_size
+    else:
+        load_size = opt.load_size
+        crop_size = opt.crop_size
     if 'resize' in opt.preprocess_mode:
-        osize = [opt.load_size, opt.load_size]
+        osize = [load_size, load_size]
         transform_list.append(transforms.Resize(osize, interpolation=method))
     elif 'scale_width' in opt.preprocess_mode:
-        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, opt.load_size, method)))
+        transform_list.append(transforms.Lambda(lambda img: __scale_width(img, load_size, method)))
     elif 'scale_shortside' in opt.preprocess_mode:
-        transform_list.append(transforms.Lambda(lambda img: __scale_shortside(img, opt.load_size, method)))
+        transform_list.append(transforms.Lambda(lambda img: __scale_shortside(img, load_size, method)))
 
     if 'crop' in opt.preprocess_mode:
-        transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], opt.crop_size)))
+        transform_list.append(transforms.Lambda(lambda img: __crop(img, params['crop_pos'], crop_size)))
 
     if opt.preprocess_mode == 'none':
         base = 32
         transform_list.append(transforms.Lambda(lambda img: __make_power_2(img, base, method)))
 
     if opt.preprocess_mode == 'fixed':
-        w = opt.crop_size
-        h = round(opt.crop_size / opt.aspect_ratio)
+        w = crop_size
+        h = round(crop_size / opt.aspect_ratio)
         transform_list.append(transforms.Lambda(lambda img: __resize(img, w, h, method)))
 
     if opt.isTrain and not opt.no_flip:

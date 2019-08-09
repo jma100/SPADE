@@ -25,6 +25,9 @@ class SPADEGenerator(BaseNetwork):
     def __init__(self, opt):
         super().__init__()
         self.opt = opt
+        print('########################3')
+        print(opt.is_object)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
         nf = opt.ngf
 
         self.sw, self.sh = self.compute_latent_vector_size(opt)
@@ -37,7 +40,7 @@ class SPADEGenerator(BaseNetwork):
         else:
             # Otherwise, we make the network deterministic by starting with
             # downsampled segmentation map instead of random z
-            self.fc = nn.Conv2d(self.opt.semantic_nc, 16 * nf, 3, padding=1)
+            self.fc = nn.Conv2d(input_nc, 16 * nf, 3, padding=1)
 
         self.head_0 = SPADEResnetBlock(16 * nf, 16 * nf, opt)
 
@@ -74,6 +77,7 @@ class SPADEGenerator(BaseNetwork):
 
         if opt.is_object:
             sw = opt.obj_crop_size // (2**num_up_layers)
+            print('processed---------------------------')
         else:
             sw = opt.crop_size // (2**num_up_layers)
         sh = round(sw / opt.aspect_ratio)
@@ -144,7 +148,7 @@ class Pix2PixHDGenerator(BaseNetwork):
 
     def __init__(self, opt):
         super().__init__()
-        input_nc = opt.label_nc + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
 
 
 

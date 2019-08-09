@@ -30,7 +30,7 @@ class ConvEncoder(BaseNetwork):
         self.layer3 = norm_layer(nn.Conv2d(ndf * 2, ndf * 4, kw, stride=2, padding=pw))
         self.layer4 = norm_layer(nn.Conv2d(ndf * 4, ndf * 8, kw, stride=2, padding=pw))
         self.layer5 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
-        if opt.crop_size >= 256:
+        if self.encode_size >= 256:
             self.layer6 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
 
         self.so = s0 = 4
@@ -49,7 +49,7 @@ class ConvEncoder(BaseNetwork):
         x = self.layer3(self.actvn(x))
         x = self.layer4(self.actvn(x))
         x = self.layer5(self.actvn(x))
-        if self.opt.crop_size >= 256:
+        if self.encode_size >= 256:
             x = self.layer6(self.actvn(x))
         x = self.actvn(x)
 

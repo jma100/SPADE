@@ -12,7 +12,7 @@ class ADE20KGlobalDataset(Pix2pixDataset):
     @staticmethod
     def modify_commandline_options(parser, is_train):
         parser = Pix2pixDataset.modify_commandline_options(parser, is_train)
-        parser.set_defaults(preprocess_mode='')
+        parser.set_defaults(preprocess_mode='resize_and_crop')
 #        if is_train:
 #            parser.set_defaults(load_size=286)
 #        else:
@@ -28,6 +28,7 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.set_defaults(nThreads=16)
         parser.set_defaults(margin=16)
         parser.set_defaults(use_vae=True)
+        parser.set_defaults(no_acgan_loss=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
         parser.add_argument('--object_info', type=str, help='object name: object ade id, object min training size')
         parser.add_argument('--obj_load_size', type=int, default=128, help='load size for cropped objects')
@@ -44,10 +45,10 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         image_paths = []
         label_paths = []
         for i,p in enumerate(training_list):
-            if p.endswith('.jpg'):
-                image_paths.append(p)
-            elif p.endswith('.png'):
+            if 'semantic' in p:
                 label_paths.append(p)
+            else:
+                image_paths.append(p)
 
         instance_paths = [] # don't use instance map for ade20k
         paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}

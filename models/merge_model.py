@@ -13,7 +13,11 @@ class MergeModel(torch.nn.Module):
     def __init__(self, opt):
         super().__init__()
         self.opt = opt
-        opt.is_object = True # implement
+        self.FloatTensor = torch.cuda.FloatTensor if self.use_gpu() \
+            else torch.FloatTensor
+        self.ByteTensor = torch.cuda.ByteTensor if self.use_gpu() \
+            else torch.ByteTensor
+        opt.is_object = True
         self.net_object = Pix2PixModel(opt)
         opt.is_object = False
         self.net_global = Pix2PixModel(opt)
@@ -38,8 +42,7 @@ class MergeModel(torch.nn.Module):
         return netA, netD
 
     def forward(self, data, mode):
-        data = self.preprocess_input(self, input)
-        if mode == 'assembler':
+        if mode == 'assemble':
             a_loss, generated = self.compute_assembler_loss(data)
             return a_loss, generated
         elif mode == 'discriminator':
@@ -47,7 +50,7 @@ class MergeModel(torch.nn.Module):
             return d_loss
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.assemble(data)
+                fake_image, _ = self.netA(data)
             return fake_image
         # elif mode == 'object_generator':
         #     return 
@@ -57,28 +60,11 @@ class MergeModel(torch.nn.Module):
         else:
             raise ValueError("|mode| is invalid")
 
-    def assemble(self, data):
-        global_gen = data['global']['generated']
-        global_label = data['global']['label']
-        for obj, obj_data in data.iteritems():
-            if obj == 'global':
-                continue
-            for instance, instance_data in obj_data.iteritems():
-                if instance != obj +'_%03d' % 0:
-                    continue
-                left, up, right, down = instance_data['bbox']
-                instance_resized_gen = F.interpolate(instance_data['generated'], size=(right-left, down-up), mode='bilinear')
-                instance_resized_mask = F.interpolate(instance_data['label'], size=(right-left, down-up), mode='nearest')
-                global_gen[:, :, left:right, up:down] = global_gen[:, :, left:right, up:down] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
-        global_gen = self.enhance_1(global_gen, global_label)
-        global_gen = self.enhance_2(global_gen, global_label)
-        return global_gen, data['global']['image'], global_label
-
 
     def compute_assembler_loss(self, data):
         G_losses = {}
 
-        fake_image, real_image, input_semantics = self.assemble(data)
+        fake_image, real_image, input_semantics = self.netA(data)
 
         pred_fake, pred_real = self.discriminate(
             input_semantics, fake_image, real_image)
@@ -121,7 +107,7 @@ class MergeModel(torch.nn.Module):
     def compute_discriminator_loss(self, data):
         D_losses = {}
         with torch.no_grad():
-            fake_image, real_image, input_semantics = self.assemble(data)
+            fake_image, real_image, input_semantics = self.netA(data)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -143,6 +129,7 @@ class MergeModel(torch.nn.Module):
         data['label'] = data['label'].long()
         if self.opt.use_acgan:
             data['object'] = data['object'].long()
+            data['object_class'] = data['object_class'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -154,14 +141,18 @@ class MergeModel(torch.nn.Module):
                 data['bg'] = data['bg'].cuda()
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
+                data['object_class'] = data['object_class'].cuda()
 
-        # create one-hot label map
-        label_map = data['label']
-        bs, _, h, w = label_map.size()
-        nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
-            else self.opt.label_nc
-        input_label = self.FloatTensor(bs, nc, h, w).zero_()
-        input_semantics = input_label.scatter_(1, label_map, 1.0)
+        if self.opt.is_object:
+            input_semantics = data['label'].float()
+        else:
+            # create one-hot label map
+            label_map = data['label']
+            bs, _, h, w = label_map.size()
+            nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
+                else self.opt.label_nc
+            input_label = self.FloatTensor(bs, nc, h, w).zero_()
+            input_semantics = input_label.scatter_(1, label_map, 1.0)
 
         # concatenate instance map if it exists
         if not self.opt.no_instance:
@@ -182,9 +173,16 @@ class MergeModel(torch.nn.Module):
         input_dict = {'label': input_semantics, 'image': data['image']}
         if self.opt.use_acgan:
             input_dict['object_class'] = data['object_class']
+        if self.opt.no_background:
+            input_dict['fg'] = data['fg']
         if self.opt.real_background:
             input_dict['fg'] = data['fg']
             input_dict['bg'] = data['bg']
+        if 'generated' in data:
+            input_dict['generated'] = data['generated']
+        if self.opt.is_object:
+            input_dict['bbox'] = data['bbox']
+            input_dict['object_name'] = data['object_name']
         return input_dict
 
     def create_optimizers(self, opt):
@@ -215,4 +213,5 @@ class MergeModel(torch.nn.Module):
         self.net_object.save(epoch)
         self.net_global.save(epoch)
 
-
+    def use_gpu(self):
+        return len(self.opt.gpu_ids) > 0
