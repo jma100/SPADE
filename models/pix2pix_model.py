@@ -36,6 +36,8 @@ class Pix2PixModel(torch.nn.Module):
             if opt.use_acgan:
                 self.criterionACGAN = networks.ACLoss(
                 tensor=self.FloatTensor, opt=self.opt)
+            if opt.use_l1:
+                self.criterionL1 = torch.nn.L1Loss()
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
@@ -178,6 +180,9 @@ class Pix2PixModel(torch.nn.Module):
 
         G_losses['GAN'] = self.criterionGAN(pred_fake, True,
                                             for_discriminator=False)
+
+        if self.opt.use_l1:
+            G_losses['L1'] = self.criterionL1(fake_image, real_image) * self.opt.lambda_l1
 
         if self.opt.use_acgan:
             object_class = input_dict['object_class']

@@ -26,11 +26,11 @@ class Pix2pixDataset(BaseDataset):
         label_paths, image_paths, instance_paths = paths['label'], paths['image'], paths['instance']        
 
 
-
-        util.natural_sort(label_paths)
-        util.natural_sort(image_paths)
-        if not opt.no_instance:
-            util.natural_sort(instance_paths)
+        if self.opt.dataroot != './datasets/cityscapes/':
+            util.natural_sort(label_paths)
+            util.natural_sort(image_paths)
+            if not opt.no_instance:
+                util.natural_sort(instance_paths)
 
         label_paths = label_paths[:opt.max_dataset_size]
         image_paths = image_paths[:opt.max_dataset_size]

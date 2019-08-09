@@ -24,9 +24,27 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
+        parser.add_argument('--train_list', type=str, help='import list of training folders')
         return parser
 
     def get_paths(self, opt):
+        if opt.train_list != None:
+            with open(opt.train_list,'r') as f:
+                training_list = f.read().split('\n')
+            if training_list[-1]=='':
+                training_list = training_list[:-1]
+            image_paths = []
+            label_paths = []
+            for i,p in enumerate(training_list):
+                if i % 2 == 0:
+                    image_paths.append(p)
+                else:
+                    label_paths.append(p)
+
+
+            instance_paths = [] # don't use instance map for ade20k
+            paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
+            return paths
         root = opt.dataroot
         phase = 'val' if opt.phase == 'test' else 'train'
 
