@@ -3,6 +3,7 @@ import torch
 from models.networks.architecture import SPADEResnetBlock as SPADEResnetBlock
 import models.networks as networks
 from models.pix2pix_model import Pix2PixModel
+import util.util as util
 
 class MergeModel(torch.nn.Module):
     @staticmethod
