@@ -46,9 +46,24 @@ class Pix2pixDataset(BaseDataset):
         self.instance_paths = instance_paths
 
         if opt.use_depth:
-            util.natural_sort(depth_paths)
+            depth_paths = paths['depth']
             depth_paths = depth_paths[:opt.max_dataset_size]
             self.depth_paths = depth_paths
+
+        if opt.use_normal:
+            normal_paths = paths['normal']
+            normal_paths = normal_paths[:opt.max_dataset_size]
+            self.normal_paths = normal_paths
+
+        if opt.use_material:
+            material_paths = paths['material']
+            material_paths = material_paths[:opt.max_dataset_size]
+            self.material_paths = material_paths
+
+        if opt.use_part:
+            part_paths = paths['part']
+            part_paths = part_paths[:opt.max_dataset_size]
+            self.part_paths = part_paths
 
         size = len(self.label_paths)
         self.dataset_size = size
@@ -103,8 +118,9 @@ class Pix2pixDataset(BaseDataset):
 #                data = data.astype(np.uint8)
 #                depth = Image.fromarray(data).convert('L')
             depth_tensor = transform_label(depth).float()
-            depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
-            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+#            depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
+#            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
@@ -138,6 +154,21 @@ class Pix2pixDataset(BaseDataset):
                       }
         if self.opt.use_depth:
             input_dict['depth'] = depth_tensor
+        if self.opt.use_normal:
+            normal_path = self.normal_paths[index]
+            normal = Image.open(normal_path)
+            normal_tensor = transform_label(normal).float()
+            input_dict['normal'] = normal_tensor
+        if self.opt.use_material:
+            material_path = self.material_paths[index]
+            material = Image.open(material_path)
+            material_tensor = transform_label(material).float()
+            input_dict['material'] = material_tensor
+        if self.opt.use_part:
+            part_path = self.part_paths[index]
+            part = Image.open(part_path)
+            part_tensor = transform_label(part).float()
+            input_dict['part'] = part_tensor
         if self.opt.use_acgan:
             input_dict['object'] = object_tensor
             input_dict['object_class'] = object_class

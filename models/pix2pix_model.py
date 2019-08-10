@@ -123,6 +123,12 @@ class Pix2PixModel(torch.nn.Module):
             data['image'] = data['image'].cuda()
             if self.opt.use_depth:
                 data['depth'] = data['depth'].cuda()
+            if self.opt.use_normal:
+                data['normal'] = data['normal'].cuda()
+            if self.opt.use_material:
+                data['material'] = data['material'].cuda()
+            if self.opt.use_part:
+                data['part'] = data['part'].cuda()
             if self.opt.real_background:
                 data['fg'] = data['fg'].cuda()
                 data['bg'] = data['bg'].cuda()
@@ -145,6 +151,12 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.use_depth:
             input_semantics = torch.cat((input_semantics, data['depth']),dim=1)
+        if self.opt.use_normal:
+            input_semantics = torch.cat((input_semantics, data['normal']),dim=1)
+        if self.opt.use_material:
+            input_semantics = torch.cat((input_semantics, data['material']),dim=1)
+        if self.opt.use_part:
+            input_semantics = torch.cat((input_semantics, data['part']),dim=1)    
 
         # create one-hot object label
         if self.opt.use_acgan:

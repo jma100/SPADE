@@ -121,6 +121,12 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += 1
         if opt.use_depth:
             input_nc += 1
+        if opt.use_normal:
+            input_nc += 3
+        if opt.use_material:
+            input_nc += 1
+        if opt.use_part:
+            input_nc += 1
         if opt.use_acgan:
             input_nc += opt.acgan_nc
         return input_nc

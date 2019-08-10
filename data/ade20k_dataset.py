@@ -25,6 +25,7 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
+        parser.add_argument('--metadata_list', type=str, help='import list of metadata files (depth, normal, material, part)')
         return parser
 
     def get_paths(self, opt):
@@ -44,6 +45,31 @@ class ADE20KDataset(Pix2pixDataset):
 
             instance_paths = [] # don't use instance map for ade20k
             paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
+
+            if opt.metadata_list != None:
+                with open(opt.metadata_list,'r') as f:
+                    metadata_list = f.read().split('\n')
+                if metadata_list[-1]=='':
+                    metadata_list = metadata_list[:-1]
+                depth_paths = []
+                normal_paths = []
+                material_paths = []
+                part_paths = []
+                for i,p in enumerate(metadata_list):
+                    if 'depth' in p:
+                        depth_paths.append(p)
+                    elif 'normal' in p:
+                        normal_paths.append(p)
+                    elif 'material' in p:
+                        material_paths.append(p)
+                    elif 'part' in p:
+                        part_paths.append(p)
+
+                paths['depth'] = depth_paths
+                paths['normal'] = normal_paths
+                paths['material'] = material_paths
+                paths['part'] = part_paths
+
             return paths
         root = opt.dataroot
         phase = 'val' if opt.phase == 'test' else 'train'
