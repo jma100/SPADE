@@ -17,7 +17,7 @@ class SPADEGenerator(BaseNetwork):
     def modify_commandline_options(parser, is_train):
         parser.set_defaults(norm_G='spectralspadesyncbatch3x3')
         parser.add_argument('--num_upsampling_layers',
-                            choices=('normal', 'more', 'most'), default='normal',
+                            choices=('less', 'normal', 'more', 'most'), default='normal',
                             help="If 'more', adds upsampling layer between the two middle resnet blocks. If 'most', also add one more upsampling + resnet layer at the end of the generator")
 
         return parser
@@ -49,7 +49,10 @@ class SPADEGenerator(BaseNetwork):
         self.up_2 = SPADEResnetBlock(4 * nf, 2 * nf, opt)
         self.up_3 = SPADEResnetBlock(2 * nf, 1 * nf, opt)
 
-        final_nc = nf
+        if opt.num_upsampling_layers == 'less':
+            final_nc = 64
+        else:
+            final_nc = nf
 
         if opt.num_upsampling_layers == 'most':
             self.up_4 = SPADEResnetBlock(1 * nf, nf // 2, opt)
@@ -60,7 +63,9 @@ class SPADEGenerator(BaseNetwork):
         self.up = nn.Upsample(scale_factor=2)
 
     def compute_latent_vector_size(self, opt):
-        if opt.num_upsampling_layers == 'normal':
+        if opt.num_upsampling_layers == 'less':
+            num_up_layers = 4
+        elif opt.num_upsampling_layers == 'normal':
             num_up_layers = 5
         elif opt.num_upsampling_layers == 'more':
             num_up_layers = 6
@@ -98,7 +103,8 @@ class SPADEGenerator(BaseNetwork):
         x = self.head_0(x, seg)
 
         x = self.up(x)
-        x = self.G_middle_0(x, seg)
+        if self.opt.num_upsampling_layers != 'less':
+            x = self.G_middle_0(x, seg)
 
         if self.opt.num_upsampling_layers == 'more' or \
            self.opt.num_upsampling_layers == 'most':
@@ -112,8 +118,9 @@ class SPADEGenerator(BaseNetwork):
         x = self.up_1(x, seg)
         x = self.up(x)
         x = self.up_2(x, seg)
-        x = self.up(x)
-        x = self.up_3(x, seg)
+        if self.opt.num_upsampling_layers != 'less':
+            x = self.up(x)
+            x = self.up_3(x, seg)
 
         if self.opt.num_upsampling_layers == 'most':
             x = self.up(x)
