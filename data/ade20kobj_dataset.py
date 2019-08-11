@@ -21,47 +21,59 @@ class ADE20KObjDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
-        parser.add_argument('--depth_dir', type=str,
-                            help='path to the directory that contains depth images')
-        parser.add_argument('--more_data', type=str,
-                            help='additional directory with more data, usually interiornet object')
+        parser.set_defaults(nThreads=16)
+        parser.set_defaults(margin=16)
+        parser.set_defaults(use_vae=True)
+        parser.set_defaults(no_acgan_loss=True)
+        parser.add_argument('--train_list', type=str, help='import list of training folders')
+        parser.add_argument('--object_info', type=str, help='object name: object ade id, object min training size')
+        parser.add_argument('--obj_load_size', type=int, default=128, help='load size for cropped objects')
+        parser.add_argument('--obj_crop_size', type=int, default=128, help='crop size for loaded objects')
+        parser.add_argument('--max_object_per_image', type=int, default=1, help='number of objects per image during training')
+        parser.set_defaults(is_object=True)
+        parser.add_argument('--metadata_list', type=str, help='import list of metadata files (depth, normal, material, part)')
         return parser
 
     def get_paths(self, opt):
-        root = opt.dataroot
-        phase = 'val' if opt.phase == 'test' else 'train'
-
-        all_images = make_dataset(root, recursive=True, read_cache=False, write_cache=False)
+        with open(opt.train_list,'r') as f:
+            training_list = f.read().split('\n')
+        if training_list[-1]=='':
+            training_list = training_list[:-1]
         image_paths = []
         label_paths = []
-        depth_paths = []
-        material_paths = []
-        illumination_paths = []
-        for p in all_images:
-#            if '_%s_' % phase not in p:
-#                continue
-            if p.endswith('.jpg'):
+        for i,p in enumerate(training_list):
+            if i % 2 == 0:
                 image_paths.append(p)
-            elif p.endswith('.png'):
+            else:
                 label_paths.append(p)
-        instance_paths = []  # don't use instance map for ade20k
 
-        if opt.more_data != None:
-            more_images = make_dataset(opt.more_data, recursive=True, read_cache=False, write_cache=False)
-            for p in more_images:
-                if p.endswith('.jpg'):
-                    image_paths.append(p)
-                elif p.endswith('.png'):
-                    label_paths.append(p)
 
-        if opt.use_material:
-            material_root = '/data/vision/torralba/scratch2/jingweim/unifiedparsing/data/ade'
-            material_paths = [os.path.join(material_root, p.split('/')[-1][:-4], 'material_result.png') for p in image_paths]
+        instance_paths = [] # don't use instance map for ade20k
+        paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
 
-        if opt.use_depth:
-            depth_paths = make_dataset(opt.depth_dir, recursive=False, read_cache=True)
+        if opt.metadata_list != None:
+            with open(opt.metadata_list,'r') as f:
+                metadata_list = f.read().split('\n')
+            if metadata_list[-1]=='':
+                metadata_list = metadata_list[:-1]
+            depth_paths = []
+            normal_paths = []
+            material_paths = []
+            part_paths = []
+            for i,p in enumerate(metadata_list):
+                if 'depth' in p:
+                    depth_paths.append(p)
+                elif 'normal' in p:
+                    normal_paths.append(p)
+                elif 'material' in p:
+                    material_paths.append(p)
+                elif 'part' in p:
+                    part_paths.append(p)
 
-        paths = {'label': label_paths, 'image': image_paths, 'depth': depth_paths, 'material': material_paths, 'instance': instance_paths, 'illumination': illumination_paths}
+            paths['depth'] = depth_paths
+            paths['normal'] = normal_paths
+            paths['material'] = material_paths
+            paths['part'] = part_paths
 
         return paths
 

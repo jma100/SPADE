@@ -79,6 +79,7 @@ class BaseOptions():
         parser.add_argument('--use_acgan', action='store_true', help='add an auxilliary classification loss')
         parser.add_argument('--acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
         parser.add_argument('--no_background', action='store_true', help='use black background')
+        parser.add_argument('--is_object', action='store_true', help='indicate if the pix2pix model is object renderer or global renderer')
 
         self.initialized = True
         return parser
@@ -170,8 +171,8 @@ class BaseOptions():
 
         # Set semantic_nc based on the option.
         # This will be convenient in many places
-        opt.semantic_nc = opt.label_nc + \
-            (1 if opt.contain_dontcare_label else 0) + \
+        opt.semantic_nc = (1 if opt.is_object else opt.label_nc) + \
+            (1 if opt.contain_dontcare_label and not opt.is_object else 0) + \
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \
             (1 if opt.use_part else 0)  + \
@@ -180,6 +181,7 @@ class BaseOptions():
             (1 if opt.use_illumination else 0) + \
             (3 if opt.add_hint else 0) + \
             (opt.acgan_nc if opt.use_acgan else 0)
+
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')

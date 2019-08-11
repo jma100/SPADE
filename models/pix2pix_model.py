@@ -135,13 +135,16 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
 
-        # create one-hot label map
-        label_map = data['label']
-        bs, _, h, w = label_map.size()
-        nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
-            else self.opt.label_nc
-        input_label = self.FloatTensor(bs, nc, h, w).zero_()
-        input_semantics = input_label.scatter_(1, label_map, 1.0)
+        if self.opt.is_object:
+            input_semantics = data['label'].float()
+        else:
+            # create one-hot label map
+            label_map = data['label']
+            bs, _, h, w = label_map.size()
+            nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
+                else self.opt.label_nc
+            input_label = self.FloatTensor(bs, nc, h, w).zero_()
+            input_semantics = input_label.scatter_(1, label_map, 1.0)
 
         # concatenate instance map if it exists
         if not self.opt.no_instance:

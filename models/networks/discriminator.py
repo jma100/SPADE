@@ -114,8 +114,8 @@ class NLayerDiscriminator(BaseNetwork):
         self.aux_layer = nn.Conv2d(nf, opt.acgan_nc, kernel_size=kw, stride=1, padding=padw)
 
     def compute_D_input_nc(self, opt):
-        input_nc = opt.label_nc + opt.output_nc
-        if opt.contain_dontcare_label:
+        input_nc = (1 if opt.is_object else opt.label_nc) + opt.output_nc
+        if opt.contain_dontcare_label and not opt.is_object:
             input_nc += 1
         if not opt.no_instance:
             input_nc += 1
