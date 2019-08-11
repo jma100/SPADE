@@ -157,10 +157,6 @@ class Pix2pixDataset(BaseDataset):
                         data_instance = dict()
                         instance_name = obj + '_%03d' % instance_id
                         cropped = image.crop((left, up, right, down))
-                        cropped_depth = depth.crop((left, up, right, down))
-                        cropped_normal = normal.crop((left, up, right, down))
-                        cropped_material = material.crop((left, up, right, down))
-                        cropped_part = part.crop((left, up, right, down))
                         mask_out = (instance_data == instance_id).astype(int)
                         cropped_mask = mask_out[up:down, left:right]
                         cropped_label = Image.fromarray(cropped_mask.astype('uint8'))
@@ -188,13 +184,21 @@ class Pix2pixDataset(BaseDataset):
                         data_instance['instance'] = 0
                         data_instance['path'] = image_path
                         if self.opt.use_depth:
+                            cropped_depth = depth.crop((left, up, right, down))
                             data_instance['depth'] = transform_obj_label(cropped_depth).float()
                         if self.opt.use_part:
+                            cropped_part = part.crop((left, up, right, down))
                             data_instance['part'] = transform_obj_label(cropped_part).float()
                         if self.opt.use_normal:
+                            cropped_normal = normal.crop((left, up, right, down))
                             data_instance['normal'] = transform_obj_label(cropped_normal).float()
                         if self.opt.use_material:
+                            cropped_material = material.crop((left, up, right, down))
                             data_instance['material'] = transform_obj_label(cropped_material).float() 
+                        if self.opt.position_encode:
+                            _, h, w = data_instance['label'].size()
+                            data_instance['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+                            data_instance['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
                         all_objects[instance_name] = data_instance
 
             chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
@@ -263,6 +267,10 @@ class Pix2pixDataset(BaseDataset):
             input_dict['bg'] = bg_tensor
         if self.opt.no_background:
             input_dict['image'] = fg_tensor
+        if self.opt.position_encode:
+            _, h, w = label_tensor.size()
+            input_dict['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+            input_dict['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
 

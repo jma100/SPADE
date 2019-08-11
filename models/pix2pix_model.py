@@ -134,6 +134,9 @@ class Pix2PixModel(torch.nn.Module):
                 data['bg'] = data['bg'].cuda()
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
+            if self.opt.position_encode:
+                data['pos_x'] = data['pos_x'].cuda()
+                data['pos_y'] = data['pos_y'].cuda()
 
         if self.opt.is_object:
             input_semantics = data['label'].float()
@@ -174,6 +177,9 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.real_background:
             input_dict['fg'] = data['fg']
             input_dict['bg'] = data['bg']
+        if self.opt.position_encode:
+            input_dict['pos_x'] = data['pos_x']
+            input_dict['pos_y'] = data['pos_y']
         return input_dict
 
     def compute_generator_loss(self, input_semantics, real_image, input_dict):
@@ -257,10 +263,12 @@ class Pix2PixModel(torch.nn.Module):
         KLD_loss = None
         if self.opt.use_vae:
             if self.opt.real_background:
-                fg = input_dict['fg']
-                z, mu, logvar = self.encode_z(fg)
+                encode_input = input_dict['fg']
             else:
-                z, mu, logvar = self.encode_z(real_image)
+                encode_input = real_image
+            if self.opt.position_encode:
+                encode_input = torch.cat((encode_input, input_dict['pos_x'].float(), input_dict['pos_y'].float()), dim=1)
+            z, mu, logvar = self.encode_z(encode_input)
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 

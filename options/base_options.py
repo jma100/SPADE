@@ -80,6 +80,8 @@ class BaseOptions():
         parser.add_argument('--acgan_nc', type=int, default=7, help='# of classes for discriminator classification')
         parser.add_argument('--no_background', action='store_true', help='use black background')
         parser.add_argument('--is_object', action='store_true', help='indicate if the pix2pix model is object renderer or global renderer')
+        parser.add_argument('--position_encode', action='store_true', help='input position alont with real image into encoder')
+
 
         self.initialized = True
         return parser
