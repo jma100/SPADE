@@ -38,6 +38,8 @@ class Pix2PixModel(torch.nn.Module):
                 tensor=self.FloatTensor, opt=self.opt)
             if opt.use_l1:
                 self.criterionL1 = torch.nn.L1Loss()
+            if opt.use_cyclez:
+                self.criterionCycle = torch.nn.L1Loss()
 
     # Entry point for all calls involving forward pass
     # of deep networks. We used this approach since DataParallel module
@@ -60,7 +62,7 @@ class Pix2PixModel(torch.nn.Module):
             return z, mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(input_semantics, real_image, input_dict)
+                fake_image, _, _ = self.generate_fake(input_semantics, real_image, input_dict)
             return fake_image
         else:
             raise ValueError("|mode| is invalid")
@@ -186,8 +188,8 @@ class Pix2PixModel(torch.nn.Module):
         G_losses = {}
 
 
-        fake_image, KLD_loss = self.generate_fake(
-            input_semantics, real_image, input_dict, compute_kld_loss=self.opt.use_vae)
+        fake_image, KLD_loss, CycleZ_loss = self.generate_fake(
+            input_semantics, real_image, input_dict, compute_kld_loss=self.opt.use_vae, compute_cyclez_loss=self.opt.use_cyclez)
 
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
@@ -204,6 +206,9 @@ class Pix2PixModel(torch.nn.Module):
 
         if self.opt.use_l1:
             G_losses['L1'] = self.criterionL1(fake_image, real_image) * self.opt.lambda_l1
+
+        if self.opt.use_cyclez:
+            G_losses['CycleZ'] = CycleZ_loss
 
         if self.opt.use_acgan:
             object_class = input_dict['object_class']
@@ -230,7 +235,7 @@ class Pix2PixModel(torch.nn.Module):
     def compute_discriminator_loss(self, input_semantics, real_image, input_dict):
         D_losses = {}
         with torch.no_grad():
-            fake_image, _ = self.generate_fake(input_semantics, real_image, input_dict)
+            fake_image, _, _ = self.generate_fake(input_semantics, real_image, input_dict)
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
@@ -258,9 +263,10 @@ class Pix2PixModel(torch.nn.Module):
         z = self.reparameterize(mu, logvar)
         return z, mu, logvar
 
-    def generate_fake(self, input_semantics, real_image, input_dict, compute_kld_loss=False):
+    def generate_fake(self, input_semantics, real_image, input_dict, compute_kld_loss=False, compute_cyclez_loss=False):
         z = None
         KLD_loss = None
+        CycleZ_loss = None
         if self.opt.use_vae:
             if self.opt.real_background:
                 encode_input = input_dict['fg']
@@ -278,10 +284,14 @@ class Pix2PixModel(torch.nn.Module):
             bg = input_dict['bg']
             fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
 
+        if compute_cyclez_loss:
+            fake_z, fake_mu, fake_logvar = self.encode_z(fake_image)
+            CycleZ_loss = (self.criterionCycle(fake_mu, mu) + self.criterionCycle(fake_logvar, logvar)) * self.opt.lambda_cyclez
+
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"
 
-        return fake_image, KLD_loss
+        return fake_image, KLD_loss, CycleZ_loss
 
     # Given fake and real image, return the prediction of discriminator
     # for each fake and real image.
