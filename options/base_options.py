@@ -79,6 +79,7 @@ class BaseOptions():
         parser.add_argument('--position_input', action='store_true', help='input position along with semantics into SPADE')
         parser.add_argument('--position_encode', action='store_true', help='input position alont with real image into encoder')
         parser.add_argument('--use_image', type=str, default='', help='input position alont with real image into encoder')
+        parser.add_argument('--use_postfix', type=str, default='', help='postfix appended to test time output folder')
 
         self.initialized = True
         return parser

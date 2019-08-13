@@ -22,7 +22,14 @@ model.eval()
 visualizer = Visualizer(opt)
 
 # create a webpage that summarizes the all results
-web_dir = os.path.join(opt.results_dir, opt.name,
+if opt.use_image != '':
+    web_dir = os.path.join(opt.results_dir, opt.name,
+                       '%s_%s_%s' % (opt.phase, opt.which_epoch, opt.use_image.split('/')[-1].split('.')[0]))
+elif opt.use_postfix != '':
+    web_dir = os.path.join(opt.results_dir, opt.name,
+                       '%s_%s_%s' % (opt.phase, opt.which_epoch, opt.use_postfix))
+else:
+    web_dir = os.path.join(opt.results_dir, opt.name,
                        '%s_%s' % (opt.phase, opt.which_epoch))
 webpage = html.HTML(web_dir,
                     'Experiment = %s, Phase = %s, Epoch = %s' %
