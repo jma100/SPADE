@@ -110,6 +110,9 @@ class Pix2pixDataset(BaseDataset):
         image = Image.open(image_path)
         image = image.convert('RGB')
 
+        if self.opt.use_image != '':
+            encode = Image.open(self.opt.use_image)
+            encode = encode.convert('RGB')
         # depth (processing)
         if self.opt.use_depth:
             depth_path = self.depth_paths[index]
@@ -199,6 +202,9 @@ class Pix2pixDataset(BaseDataset):
                             _, h, w = data_instance['label'].size()
                             data_instance['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
                             data_instance['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
+                        if self.opt.use_image != "":
+                            encode_tensor = transform_obj_image(encode)
+                            data_instance['encode'] = encode_tensor
                         all_objects[instance_name] = data_instance
 
             chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
@@ -271,6 +277,9 @@ class Pix2pixDataset(BaseDataset):
             _, h, w = label_tensor.size()
             input_dict['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
             input_dict['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
+        if self.opt.use_image != "":
+            encode_tensor = transform_image(encode)
+            input_dict['encode'] = encode_tensor  
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)
 

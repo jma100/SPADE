@@ -139,7 +139,8 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.position_encode:
                 data['pos_x'] = data['pos_x'].cuda()
                 data['pos_y'] = data['pos_y'].cuda()
-
+            if self.opt.use_image != '':
+                data['encode'] = data['encode'].cuda()
         if self.opt.is_object:
             input_semantics = data['label'].float()
         else:
@@ -268,7 +269,10 @@ class Pix2PixModel(torch.nn.Module):
         KLD_loss = None
         CycleZ_loss = None
         if self.opt.use_vae:
-            if self.opt.real_background:
+            if self.opt.use_image != '':
+                z, mu, logvar = self.encode_z(input_dict['encode'])
+                print('encoded')
+            elif self.opt.real_background:
                 encode_input = input_dict['fg']
             else:
                 encode_input = real_image
