@@ -54,7 +54,7 @@ outdir = '/data/vision/torralba/virtualhome/realvirtualhome/SPADE/checkpoints/%s
 labels = kmeans.labels_
 if not os.path.isdir(outdir):
     os.makedirs(outdir)
-'''
+
 if os.path.isdir(outdir):
     shutil.rmtree(outdir)
 for i in range(n_clusters):
@@ -66,7 +66,7 @@ for i in range(n_clusters):
         for path in paths:
             f.write(path+'\n')
             shutil.copy(path, folder)
-'''
+
 centers = kmeans.cluster_centers_
 np.save(os.path.join(outdir, "cluster_%s.npy" % n_clusters), centers)
 #import pdb; pdb.set_trace()
@@ -103,3 +103,33 @@ new_centers = new_kmeans.cluster_centers_
 plt.scatter(new_centers[:, 0], new_centers[:, 1], c='black', s=200, alpha=0.5); 
 plt.savefig(os.path.join(outdir, "cluster_together_%03d_3.png" % epoch))
 #import pdb; pdb.set_trace()
+
+reduced_data = PCA(n_components=2).fit_transform(mu_collector[:300])
+plt.clf()
+new_kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+new_kmeans.fit(reduced_data)
+y_kmeans = new_kmeans.predict(reduced_data)
+plt.scatter(reduced_data[:, 0], reduced_data[:, 1], c=y_kmeans, s=50, cmap='viridis')
+new_centers = new_kmeans.cluster_centers_
+plt.scatter(new_centers[:, 0], new_centers[:, 1], c='black', s=200, alpha=0.5); 
+plt.savefig(os.path.join(outdir, "cluster_mu_%03d_%02d.png" % (epoch, n_clusters)))
+
+reduced_data = PCA(n_components=2).fit_transform(var_collector[:300])
+plt.clf()
+new_kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+new_kmeans.fit(reduced_data)
+y_kmeans = new_kmeans.predict(reduced_data)
+plt.scatter(reduced_data[:, 0], reduced_data[:, 1], c=y_kmeans, s=50, cmap='viridis')
+new_centers = new_kmeans.cluster_centers_
+plt.scatter(new_centers[:, 0], new_centers[:, 1], c='black', s=200, alpha=0.5); 
+plt.savefig(os.path.join(outdir, "cluster_var_%03d_%02d.png" % (epoch, n_clusters)))
+
+reduced_data = PCA(n_components=2).fit_transform(new[:300])
+plt.clf()
+new_kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+new_kmeans.fit(reduced_data)
+y_kmeans = new_kmeans.predict(reduced_data)
+plt.scatter(reduced_data[:, 0], reduced_data[:, 1], c=y_kmeans, s=50, cmap='viridis')
+new_centers = new_kmeans.cluster_centers_
+plt.scatter(new_centers[:, 0], new_centers[:, 1], c='black', s=200, alpha=0.5);
+plt.savefig(os.path.join(outdir, "cluster_together_%03d_%02d.png" % (epoch, n_clusters)))
