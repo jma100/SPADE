@@ -207,12 +207,15 @@ class Pix2pixDataset(BaseDataset):
                             data_instance['encode'] = encode_tensor
                         all_objects[instance_name] = data_instance
 
-            chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
-            # implement
+            if self.opt.phase == 'train':
+                chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
+                input_dict = all_objects[chosen[0]]
+            else:
+                input_dict = all_objects['bed_001']
+           # implement
 #            for i in range(self.opt.max_object_per_image):
 #                all_objects[chosen[i]]['object_name'] = chosen[i]
 #                input_dict['object_%03d' % i] = all_objects[chosen[i]]
-            input_dict = all_objects[chosen[0]]
             return input_dict
         # Label Image
         params = get_params(self.opt, label.size)
