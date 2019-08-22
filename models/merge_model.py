@@ -187,12 +187,15 @@ class MergeModel(torch.nn.Module):
         return input_dict
 
     def create_optimizers(self, opt):
-        A_params = list(self.netA.parameters())+ \
+        if opt.load_pretrain:
+            A_params = list(self.netA.parameters())
+        else:
+            A_params = list(self.netA.parameters())+ \
                     list(self.net_object.netG.parameters()) + \
                     list(self.net_global.netG.parameters())
-        if opt.use_vae:
-            A_params += list(self.net_object.netE.parameters())
-            A_params += list(self.net_global.netE.parameters())
+            if opt.use_vae:
+                A_params += list(self.net_object.netE.parameters())
+                A_params += list(self.net_global.netE.parameters())
         if opt.isTrain:
             D_params = list(self.netD.parameters())
 
@@ -211,8 +214,9 @@ class MergeModel(torch.nn.Module):
     def save(self, epoch):
         util.save_network(self.netA, 'A', epoch, self.opt)
         util.save_network(self.netD, 'D', epoch, self.opt)
-        self.net_object.save(epoch)
-        self.net_global.save(epoch)
+        if not opt.load_pretrain:
+            self.net_object.save(epoch)
+            self.net_global.save(epoch)
 
     def use_gpu(self):
         return len(self.opt.gpu_ids) > 0

@@ -35,6 +35,8 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.add_argument('--obj_crop_size', type=int, default=128, help='crop size for loaded objects')
         parser.add_argument('--max_object_per_image', type=int, default=1, help='number of objects per image during training')
         parser.add_argument('--is_object', action='store_true', help='indicate if the pix2pix model is object renderer or global renderer')
+        parser.add_argument('--pretrain_object', type=str, help='folder of pretrained object model checkpoints')
+        parser.add_argument('--pretrain_stuff', type=str, help='folder of pretrained stuff model checkpoints')
         return parser
 
     def get_paths(self, opt):

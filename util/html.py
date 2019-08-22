@@ -52,7 +52,8 @@ class HTML:
                             with a(href=os.path.join('images', link)):
                                 img(style="width:%dpx" % (width), src=os.path.join('images', im))
                             br()
-                            p(txt.encode('utf-8'))
+                            #p(txt.encode('utf-8'))
+                            p(txt)
 
     def save(self):
         html_file = os.path.join(self.web_dir, self.html_name)

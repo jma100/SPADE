@@ -19,9 +19,11 @@ print(' '.join(sys.argv))
 
 # load the dataset
 dataloader = data.create_dataloader(opt)
+import pdb; pdb.set_trace()
 
 # create trainer for our model
 merge_trainer = MergeTrainer(opt) # implement
+import pdb; pdb.set_trace()
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader))
@@ -37,6 +39,7 @@ for epoch in iter_counter.training_epochs():
         for obj, obj_data in data_i.items():
             opt.is_object = True if obj != 'global' else False
             data_i[obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
+        import pdb; pdb.set_trace()
 
         # Training
         # train each object
@@ -48,7 +51,9 @@ for epoch in iter_counter.training_epochs():
                 merge_trainer.run_object_generator_one_step(data_i[name])
                 data_i[name]['generated'] = merge_trainer.object_generated
             # train object discriminator
-            merge_trainer.run_object_discriminator_one_step(data_i[name])
+            if not opt.load_pretrain:
+                merge_trainer.run_object_discriminator_one_step(data_i[name])
+        import pdb; pdb.set_trace()
 
         opt.is_object = False
         # train global generator
@@ -57,11 +62,14 @@ for epoch in iter_counter.training_epochs():
             data_i['global']['generated'] = merge_trainer.global_generated
 
         # train global discriminator
-        merge_trainer.run_global_discriminator_one_step(data_i['global'])
+        if not opt.load_pretrain:
+            merge_trainer.run_global_discriminator_one_step(data_i['global'])
+
+        import pdb; pdb.set_trace()
 
         # train merge step
         if i % opt.D_steps_per_G == 0:
-            merge_trainer.run_overall_one_step(data_i, merge_trainer.object_generated, merge_trainer.global_generated)
+            merge_trainer.run_overall_one_step(data_i)
             data_i['generated'] = merge_trainer.generated
 
         # train overall discriminator
@@ -69,7 +77,10 @@ for epoch in iter_counter.training_epochs():
 
         # Visualizations
         if iter_counter.needs_printing():
-            losses = merge_trainer.get_latest_losses()[0]
+            if opt.load_pretrain:
+                losses = merge_trainer.get_latest_losses() 
+            else:
+                losses = merge_trainer.get_latest_losses()[0]
             visualizer.print_current_errors(epoch, iter_counter.epoch_iter,
                                             losses, iter_counter.time_per_iter)
             visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
@@ -77,7 +88,11 @@ for epoch in iter_counter.training_epochs():
         if iter_counter.needs_displaying():
             visuals = OrderedDict([('input_label', data_i['global']['label']),
                                    ('synthesized_image', data_i['generated']),
-                                   ('real_image', data_i['global']['image'])])
+                                   ('real_image', data_i['global']['image']),
+                                   ('synthesized_global', data_i['global']['generated'])])
+            for n in range(opt.max_object_per_image):
+                name = 'object_%03d' % n
+                visuals[name] = data_i[name]['generated']
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_saving():

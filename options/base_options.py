@@ -78,7 +78,7 @@ class BaseOptions():
         parser.add_argument('--acgan_nc', type=int, default=0, help='# of classes for discriminator classification')
         parser.add_argument('--no_background', action='store_true', help='use black background')
         parser.add_argument('--margin', type=int, default=16, help='margin added when cropping object')
-
+        parser.add_argument('--load_pretrain', action='store_true', help='load pretrained object and stuff model weights')
         self.initialized = True
         return parser
 

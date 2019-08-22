@@ -1,7 +1,7 @@
 from models.networks.sync_batchnorm import DataParallelWithCallback
 from models.merge_model import MergeModel
 from models.pix2pix_model import Pix2PixModel
-
+import torch
 
 class MergeTrainer():
     """
@@ -31,15 +31,11 @@ class MergeTrainer():
                 self.merge_model_on_one_gpu.net_global.create_optimizers(opt)
             self.old_lr = opt.lr
 
-    def run_overall_one_step(self, data, object_generated, global_generated):
-        self.optimizer_G_object.zero_grad()
-        self.optimizer_G_global.zero_grad()
+    def run_overall_one_step(self, data):
         self.optimizer_A.zero_grad()
         a_losses, generated = self.merge_model(data, mode='assemble')
         loss = sum(a_losses.values()).mean()
         loss.backward()
-        self.optimizer_G_object.step()
-        self.optimizer_G_global.step()
         self.optimizer_A.step()
         self.a_losses = a_losses
         self.generated = generated
@@ -53,14 +49,21 @@ class MergeTrainer():
         self.d_losses = d_losses
 
     def run_object_generator_one_step(self, data):
-        self.optimizer_G_object.zero_grad()
-        object_g_losses, object_generated = self.merge_model.module.net_object(data, mode='generator')
-        object_g_loss = sum(object_g_losses.values()).mean()
-        object_g_loss.backward(retain_graph=True)
-#        object_g_loss.backward()
-        self.optimizer_G_object.step()
-        self.object_g_losses = object_g_losses
-        self.object_generated = object_generated
+        if self.opt.load_pretrain:
+            with torch.no_grad():
+                _, object_generated = self.merge_model.module.net_object(data, mode='generator')
+                object_generated = object_generated.detach()
+                object_generated.requires_grad_()
+                self.object_generated = object_generated
+        else:
+            self.optimizer_G_object.zero_grad()
+            object_g_losses, object_generated = self.merge_model.module.net_object(data, mode='generator')
+            object_g_loss = sum(object_g_losses.values()).mean()
+            object_g_loss.backward(retain_graph=True)
+    #        object_g_loss.backward()
+            self.optimizer_G_object.step()
+            self.object_g_losses = object_g_losses
+            self.object_generated = object_generated
 
     def run_object_discriminator_one_step(self, data):
         self.optimizer_D_object.zero_grad()
@@ -71,14 +74,21 @@ class MergeTrainer():
         self.object_d_losses = object_d_losses
 
     def run_global_generator_one_step(self, data):
-        self.optimizer_G_global.zero_grad()
-        global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')
-        global_g_loss = sum(global_g_losses.values()).mean()
-        global_g_loss.backward(retain_graph=True)
-#        global_g_loss.backward()
-        self.optimizer_G_global.step()
-        self.global_g_losses = global_g_losses
-        self.global_generated = global_generated
+        if self.opt.load_pretrain:
+            with torch.no_grad():
+                _, global_generated = self.merge_model.module.net_global(data, mode='generator')
+                global_generated = global_generated.detach()
+                global_generated.requires_grad_()
+                self.global_generated = global_generated
+        else:
+            self.optimizer_G_global.zero_grad()
+            global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')
+            global_g_loss = sum(global_g_losses.values()).mean()
+            global_g_loss.backward(retain_graph=True)
+#            global_g_loss.backward()
+            self.optimizer_G_global.step()
+            self.global_g_losses = global_g_losses
+            self.global_generated = global_generated
 
     def run_global_discriminator_one_step(self, data):
         self.optimizer_D_global.zero_grad()
@@ -89,6 +99,8 @@ class MergeTrainer():
         self.global_d_losses = global_d_losses
 
     def get_latest_losses(self):
+        if self.opt.load_pretrain:
+            return {**self.a_losses, **self.d_losses}
         return [{**self.a_losses, **self.d_losses}, 
                 {**self.object_g_losses, **self.object_d_losses}, 
                 {**self.global_g_losses, **self.global_d_losses}]

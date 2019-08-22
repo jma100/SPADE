@@ -14,14 +14,16 @@ class Assembler(BaseNetwork):
     def forward(self, data):
         global_gen = data['global']['generated'].clone()
         global_label = data['global']['label']
-        for obj, obj_data in data.items():
-            if obj == 'global' or 'generated':
-                continue
-            instance_data = data[obj]
-            left, up, right, down = [f.item() for f in instance_data['bbox']]
-            instance_resized_gen = F.interpolate(instance_data['generated'], size=(right-left, down-up), mode='bilinear')
-            instance_resized_mask = F.interpolate(instance_data['label'], size=(right-left, down-up), mode='nearest')
-            global_gen[:, :, left:right, up:down] = data['global']['generated'][:, :, left:right, up:down] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
+        batch_process = []
+        for i in range(global_gen.size()[0]):
+            for obj, obj_data in data.items():
+                if obj == 'global' or obj == 'generated':
+                    continue
+                instance_data = data[obj]
+                left, up, right, down = [f[i].item() for f in instance_data['bbox']]
+                instance_resized_gen = F.interpolate(instance_data['generated'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
+                instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
+                global_gen[i:i+1, :, up:down, left:right] = data['global']['generated'][i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
         global_gen = self.enhance_1(global_gen, global_label)
         global_gen = self.enhance_2(global_gen, global_label)
         return global_gen, data['global']['image'], global_label
