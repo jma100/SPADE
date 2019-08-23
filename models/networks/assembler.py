@@ -37,6 +37,7 @@ class Assembler(BaseNetwork):
         global_gen = self.up(global_gen)
         global_gen = self.up_3(global_gen, global_label)
         global_gen = self.conv_img(F.leaky_relu(global_gen, 2e-1, inplace=True))
+        global_gen = F.tanh(global_gen)
         global_gen = self.enhance_1(global_gen, data['global']['label'])
         global_gen = self.enhance_2(global_gen, data['global']['label'])
         return global_gen, data['global']['image'], data['global']['label']
