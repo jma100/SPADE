@@ -130,7 +130,10 @@ class Pix2pixDataset(BaseDataset):
                         new_right = int(float(right)/width*self.opt.crop_size)
                         new_up = int(float(up)/height*self.opt.crop_size)
                         new_down = int(float(down)/height*self.opt.crop_size)
-                        data_instance['bbox'] = [new_left, new_up, new_right, new_down]
+                        if flip:
+                            data_instance['bbox'] = [self.opt.crop_size-new_right, new_up, self.opt.crop_size-new_left, new_down]
+                        else:
+                            data_instance['bbox'] = [new_left, new_up, new_right, new_down]
                         data_instance['image'] = transform_obj_image(cropped)
                         data_instance['label'] = transform_obj_label(cropped_label) * 255.0
                         if self.opt.use_acgan:
@@ -148,9 +151,19 @@ class Pix2pixDataset(BaseDataset):
                         all_objects[instance_name] = data_instance
 
         chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
+#        print(all_objects.keys())
+#        for obj, (obj_id, min_size) in self.object_info.items():
+#            for i in range(self.opt.max_object_per_image):
+#                instance_name = obj + '_%03d' % (i+1)
+#                input_dict['object_%03d' % i] = all_objects[instance_name]
+
         for i in range(self.opt.max_object_per_image):
             all_objects[chosen[i]]['object_name'] = chosen[i]
             input_dict['object_%03d' % i] = all_objects[chosen[i]]
+#            print('####################pix2pix.py###############')
+#            print(input_dict['object_%03d' % i]['bbox'])
+#            print(image_path)
+
 
         # depth (processing)
         if self.opt.use_depth:

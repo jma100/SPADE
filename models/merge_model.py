@@ -36,9 +36,9 @@ class MergeModel(torch.nn.Module):
         netD = networks.define_D(opt) if opt.isTrain else None
 
         if not opt.isTrain or opt.continue_train:
-            netA = util.load_network(netA, 'A', opt.which_epoch, opt)
+            netA = util.load_network(netA, 'A', opt.which_epoch, opt, is_pix2pix=False)
             if opt.isTrain:
-                netD = util.load_network(netD, 'D', opt.which_epoch, opt)
+                netD = util.load_network(netD, 'D', opt.which_epoch, opt, is_pix2pix=False)
 
         return netA, netD
 
@@ -51,7 +51,7 @@ class MergeModel(torch.nn.Module):
             return d_loss
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.netA(data)
+                fake_image, _, _ = self.netA(data)
             return fake_image
         # elif mode == 'object_generator':
         #     return 
@@ -172,10 +172,10 @@ class MergeModel(torch.nn.Module):
             input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
 
         input_dict = {'label': input_semantics, 'image': data['image']}
+        if not self.opt.is_object:
+            input_dict['path'] = data['path']
         if self.opt.use_acgan:
             input_dict['object_class'] = data['object_class']
-        if self.opt.no_background:
-            input_dict['fg'] = data['fg']
         if self.opt.real_background:
             input_dict['fg'] = data['fg']
             input_dict['bg'] = data['bg']
@@ -183,7 +183,6 @@ class MergeModel(torch.nn.Module):
             input_dict['generated'] = data['generated']
         if self.opt.is_object:
             input_dict['bbox'] = data['bbox']
-            input_dict['object_name'] = data['object_name']
         return input_dict
 
     def create_optimizers(self, opt):
@@ -214,7 +213,7 @@ class MergeModel(torch.nn.Module):
     def save(self, epoch):
         util.save_network(self.netA, 'A', epoch, self.opt)
         util.save_network(self.netD, 'D', epoch, self.opt)
-        if not opt.load_pretrain:
+        if not self.opt.load_pretrain:
             self.net_object.save(epoch)
             self.net_global.save(epoch)
 

@@ -25,11 +25,12 @@ class MergeTrainer():
         if opt.isTrain:
             self.optimizer_A, self.optimizer_D = \
                 self.merge_model_on_one_gpu.create_optimizers(opt)
+            self.old_lr = opt.lr
+        if opt.isTrain and not opt.load_pretrain:
             self.optimizer_G_object, self.optimizer_D_object = \
                 self.merge_model_on_one_gpu.net_object.create_optimizers(opt)
             self.optimizer_G_global, self.optimizer_D_global = \
                 self.merge_model_on_one_gpu.net_global.create_optimizers(opt)
-            self.old_lr = opt.lr
 
     def run_overall_one_step(self, data):
         self.optimizer_A.zero_grad()
@@ -50,11 +51,10 @@ class MergeTrainer():
 
     def run_object_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            with torch.no_grad():
-                _, object_generated = self.merge_model.module.net_object(data, mode='generator')
-                object_generated = object_generated.detach()
-                object_generated.requires_grad_()
-                self.object_generated = object_generated
+            object_generated = self.merge_model.module.net_object(data, mode='inference')
+            object_generated = object_generated.detach()
+            object_generated.requires_grad_()
+            self.object_generated = object_generated
         else:
             self.optimizer_G_object.zero_grad()
             object_g_losses, object_generated = self.merge_model.module.net_object(data, mode='generator')
@@ -75,11 +75,10 @@ class MergeTrainer():
 
     def run_global_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            with torch.no_grad():
-                _, global_generated = self.merge_model.module.net_global(data, mode='generator')
-                global_generated = global_generated.detach()
-                global_generated.requires_grad_()
-                self.global_generated = global_generated
+            global_generated = self.merge_model.module.net_global(data, mode='inference')
+            global_generated = global_generated.detach()
+            global_generated.requires_grad_()
+            self.global_generated = global_generated
         else:
             self.optimizer_G_global.zero_grad()
             global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')

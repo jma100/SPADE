@@ -25,7 +25,7 @@ class Pix2PixModel(torch.nn.Module):
         self.netG, self.netD, self.netE = self.initialize_networks(opt)
 
         # set loss functions
-        if opt.isTrain:
+        if opt.isTrain and not opt.load_pretrain:
             self.criterionGAN = networks.GANLoss(
                 opt.gan_mode, tensor=self.FloatTensor, opt=self.opt)
             self.criterionFeat = torch.nn.L1Loss()
@@ -91,7 +91,7 @@ class Pix2PixModel(torch.nn.Module):
 
     def initialize_networks(self, opt):
         netG = networks.define_G(opt)
-        netD = networks.define_D(opt) if opt.isTrain else None
+        netD = networks.define_D(opt) if opt.isTrain and not opt.load_pretrain else None
         netE = networks.define_E(opt) if opt.use_vae else None
 
         if opt.load_pretrain or not opt.isTrain or opt.continue_train:

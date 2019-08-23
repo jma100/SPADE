@@ -10,6 +10,8 @@ import data
 from util.iter_counter import IterationCounter
 from util.visualizer import Visualizer
 from trainers.merge_trainer import MergeTrainer
+import torch
+from torchsummary import summary
 
 # parse options
 opt = TrainOptions().parse()
@@ -17,13 +19,14 @@ opt = TrainOptions().parse()
 # print options to help debugging
 print(' '.join(sys.argv))
 
+
 # load the dataset
 dataloader = data.create_dataloader(opt)
-import pdb; pdb.set_trace()
+#import pdb; pdb.set_trace()
 
 # create trainer for our model
 merge_trainer = MergeTrainer(opt) # implement
-import pdb; pdb.set_trace()
+#import pdb; pdb.set_trace()
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader))
@@ -39,7 +42,7 @@ for epoch in iter_counter.training_epochs():
         for obj, obj_data in data_i.items():
             opt.is_object = True if obj != 'global' else False
             data_i[obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
-        import pdb; pdb.set_trace()
+#        import pdb; pdb.set_trace()
 
         # Training
         # train each object
@@ -53,7 +56,8 @@ for epoch in iter_counter.training_epochs():
             # train object discriminator
             if not opt.load_pretrain:
                 merge_trainer.run_object_discriminator_one_step(data_i[name])
-        import pdb; pdb.set_trace()
+        torch.cuda.empty_cache()
+#        import pdb; pdb.set_trace()
 
         opt.is_object = False
         # train global generator
@@ -64,8 +68,8 @@ for epoch in iter_counter.training_epochs():
         # train global discriminator
         if not opt.load_pretrain:
             merge_trainer.run_global_discriminator_one_step(data_i['global'])
-
-        import pdb; pdb.set_trace()
+        torch.cuda.empty_cache()
+#        import pdb; pdb.set_trace()
 
         # train merge step
         if i % opt.D_steps_per_G == 0:
@@ -75,6 +79,8 @@ for epoch in iter_counter.training_epochs():
         # train overall discriminator
         merge_trainer.run_discriminator_one_step(data_i)
 
+#        import pdb; pdb.set_trace()
+        torch.cuda.empty_cache()
         # Visualizations
         if iter_counter.needs_printing():
             if opt.load_pretrain:
@@ -93,6 +99,7 @@ for epoch in iter_counter.training_epochs():
             for n in range(opt.max_object_per_image):
                 name = 'object_%03d' % n
                 visuals[name] = data_i[name]['generated']
+
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_saving():

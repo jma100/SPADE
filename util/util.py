@@ -200,8 +200,8 @@ def save_network(net, label, epoch, opt):
         net.cuda()
 
 
-def load_network(net, label, epoch, opt):
-    if opt.load_pretrain:
+def load_network(net, label, epoch, opt, is_pix2pix=True):
+    if opt.load_pretrain and is_pix2pix:
         save_filename = '%s_net_%s.pth' % (epoch, label)
         if opt.is_object:
             save_path = os.path.join(opt.pretrain_object, save_filename)

@@ -66,7 +66,7 @@ class SPADEResnetBlock(nn.Module):
         return x_s
 
     def actvn(self, x):
-        return F.leaky_relu(x, 2e-1)
+        return F.leaky_relu(x, 2e-1, inplace=True)
 
 
 # ResNet block used in pix2pixHD
