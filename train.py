@@ -94,11 +94,7 @@ for epoch in iter_counter.training_epochs():
         if iter_counter.needs_displaying():
             visuals = OrderedDict([('input_label', data_i['global']['label']),
                                    ('synthesized_image', data_i['generated']),
-                                   ('real_image', data_i['global']['image']),
-                                   ('synthesized_global', data_i['global']['generated'])])
-            for n in range(opt.max_object_per_image):
-                name = 'object_%03d' % n
-                visuals[name] = data_i[name]['generated']
+                                   ('real_image', data_i['global']['image'])])
 
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 
