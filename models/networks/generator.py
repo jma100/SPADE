@@ -121,8 +121,8 @@ class SPADEGenerator(BaseNetwork):
         x = self.up_1(x, seg)
         x = self.up(x)
         x = self.up_2(x, seg)
-#        x = self.up(x)
-#        x = self.up_3(x, seg)
+        x = self.up(x)
+        x = self.up_3(x, seg)
 
         if self.opt.num_upsampling_layers == 'most':
             x = self.up(x)
