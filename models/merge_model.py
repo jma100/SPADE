@@ -143,7 +143,9 @@ class MergeModel(torch.nn.Module):
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
                 data['object_class'] = data['object_class'].cuda()
-
+            if self.opt.position_encode and self.opt.is_object:
+                data['pos_x'] = data['pos_x'].cuda()
+                data['pos_y'] = data['pos_y'].cuda()
         if self.opt.is_object:
             input_semantics = data['label'].float()
         else:
@@ -179,6 +181,9 @@ class MergeModel(torch.nn.Module):
         if self.opt.real_background:
             input_dict['fg'] = data['fg']
             input_dict['bg'] = data['bg']
+        if self.opt.position_encode and self.opt.is_object:
+            input_dict['pos_x'] = data['pos_x']
+            input_dict['pos_y'] = data['pos_y']
         if 'generated' in data:
             input_dict['generated'] = data['generated']
         if self.opt.is_object:

@@ -147,6 +147,10 @@ class Pix2pixDataset(BaseDataset):
                         if self.opt.real_background:
                             data_instance['fg'] = data_instance['image'] * data_instance['label'].long().float()
                             data_instance['bg'] = data_instance['image'] * (1-data_instance['label'].long()).float()
+                        if self.opt.position_encode:
+                            _, h, w = data_instance['label'].size()
+                            data_instance['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+                            data_instance['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
                         data_instance['instance'] = 0
                         all_objects[instance_name] = data_instance
 
@@ -199,7 +203,10 @@ class Pix2pixDataset(BaseDataset):
                       }
         if self.opt.use_depth:
             data_global['depth'] = depth_tensor
-
+#        if self.opt.position_encode:
+#            _, h, w = label_tensor.size()
+#            data_global['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+#            data_global['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
         # Give subclasses a chance to modify the final output
         self.postprocess(data_global)
         input_dict['global'] = data_global

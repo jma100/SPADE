@@ -184,10 +184,14 @@ class Pix2PixModel(torch.nn.Module):
         real_image, input_semantics = input_dict['image'], input_dict['label']
         if self.opt.use_vae:
             if self.opt.real_background:
-                fg = input_dict['fg']
-                z, mu, logvar = self.encode_z(fg)
+                encode_input = input_dict['fg']
             else:
-                z, mu, logvar = self.encode_z(real_image)
+                encode_input = real_image
+
+            if self.opt.position_encode and self.opt.is_object:
+                encode_input = torch.cat((encode_input, input_dict['pos_x'].float(), input_dict['pos_y'].float()), dim=1)
+
+            z, mu, logvar = self.encode_z(encode_input)
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 
