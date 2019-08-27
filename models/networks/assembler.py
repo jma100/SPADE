@@ -25,7 +25,11 @@ class Assembler(BaseNetwork):
 #                print(left, up, right, down)
 #                print(data['global']['path'][i])
                 instance_resized_gen = F.interpolate(instance_data['generated'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
-                instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
+                if instance_data['label'].size()[1]>1:
+                    instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, 1:2, :, :], size=(down-up, right-left), mode='nearest')
+                else:
+                    instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
+                    
                 global_gen[i:i+1, :, up:down, left:right] = data['global']['generated'][i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
         global_gen = self.enhance_1(global_gen, global_label)
         global_gen = self.enhance_2(global_gen, global_label)

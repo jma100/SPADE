@@ -27,7 +27,8 @@ class SPADEGenerator(BaseNetwork):
         self.opt = opt
         print('########################3')
         print(opt.is_object)
-        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and (not opt.is_object or opt.old_version) else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        print(input_nc)
         nf = opt.ngf
 
         self.sw, self.sh = self.compute_latent_vector_size(opt)

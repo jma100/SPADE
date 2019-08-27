@@ -116,7 +116,7 @@ class NLayerDiscriminator(BaseNetwork):
 
     def compute_D_input_nc(self, opt):
         input_nc = (1 if opt.is_object else opt.label_nc) + opt.output_nc
-        if opt.contain_dontcare_label and not opt.is_object:
+        if opt.contain_dontcare_label and (not opt.is_object or opt.old_version):
             input_nc += 1
         if not opt.no_instance:
             input_nc += 1

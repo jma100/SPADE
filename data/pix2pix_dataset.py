@@ -130,7 +130,7 @@ class Pix2pixDataset(BaseDataset):
                         new_right = int(float(right)/width*self.opt.crop_size)
                         new_up = int(float(up)/height*self.opt.crop_size)
                         new_down = int(float(down)/height*self.opt.crop_size)
-                        if flip:
+                        if flip and self.opt.isTrain and not self.opt.no_flip:
                             data_instance['bbox'] = [self.opt.crop_size-new_right, new_up, self.opt.crop_size-new_left, new_down]
                         else:
                             data_instance['bbox'] = [new_left, new_up, new_right, new_down]
@@ -150,19 +150,14 @@ class Pix2pixDataset(BaseDataset):
                         data_instance['instance'] = 0
                         all_objects[instance_name] = data_instance
 
-        chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
-#        print(all_objects.keys())
-#        for obj, (obj_id, min_size) in self.object_info.items():
-#            for i in range(self.opt.max_object_per_image):
-#                instance_name = obj + '_%03d' % (i+1)
-#                input_dict['object_%03d' % i] = all_objects[instance_name]
-
-        for i in range(self.opt.max_object_per_image):
-            all_objects[chosen[i]]['object_name'] = chosen[i]
-            input_dict['object_%03d' % i] = all_objects[chosen[i]]
-#            print('####################pix2pix.py###############')
-#            print(input_dict['object_%03d' % i]['bbox'])
-#            print(image_path)
+        if self.opt.phase == 'train':
+             chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
+             for i in range(self.opt.max_object_per_image):
+                 all_objects[chosen[i]]['object_name'] = chosen[i]
+                 input_dict['object_%03d' % i] = all_objects[chosen[i]]
+        else:
+             chosen = sorted(all_objects.keys())[0]
+             input_dict['object_%03d' % 0] = all_objects[chosen]
 
 
         # depth (processing)

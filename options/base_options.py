@@ -79,6 +79,7 @@ class BaseOptions():
         parser.add_argument('--no_background', action='store_true', help='use black background')
         parser.add_argument('--margin', type=int, default=16, help='margin added when cropping object')
         parser.add_argument('--load_pretrain', action='store_true', help='load pretrained object and stuff model weights')
+        parser.add_argument('--old_version', action='store_true', help='if true, it is the 2-channel version')
         self.initialized = True
         return parser
 
@@ -170,7 +171,7 @@ class BaseOptions():
         # Set semantic_nc based on the option.
         # This will be convenient in many places
         opt.semantic_nc = (1 if opt.is_object else opt.label_nc) + \
-            (1 if opt.contain_dontcare_label and not opt.is_object else 0) + \
+            (1 if opt.contain_dontcare_label and (not opt.is_object or opt.old_version) else 0 ) + \
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \
             (opt.material_nc if opt.use_material else 0) + \

@@ -21,6 +21,7 @@ class MergeModel(torch.nn.Module):
         opt.is_object = True
         self.net_object = Pix2PixModel(opt)
         opt.is_object = False
+        opt.old_version = False
         self.net_global = Pix2PixModel(opt)
         self.netA, self.netD = self.initialize_networks(opt)
 
@@ -144,8 +145,16 @@ class MergeModel(torch.nn.Module):
                 data['object'] = data['object'].cuda()
                 data['object_class'] = data['object_class'].cuda()
 
-        if self.opt.is_object:
+        if self.opt.is_object and not self.opt.old_version:
             input_semantics = data['label'].float()
+        elif self.opt.is_object:
+            # create one-hot label map
+            label_map = data['label']
+            bs, _, h, w = label_map.size()
+            nc = 2 if self.opt.contain_dontcare_label \
+                else 1
+            input_label = self.FloatTensor(bs, nc, h, w).zero_()
+            input_semantics = input_label.scatter_(1, label_map, 1.0)
         else:
             # create one-hot label map
             label_map = data['label']
