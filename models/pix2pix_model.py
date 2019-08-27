@@ -141,7 +141,7 @@ class Pix2PixModel(torch.nn.Module):
                 data['pos_y'] = data['pos_y'].cuda()
             if self.opt.use_image != '':
                 data['encode'] = data['encode'].cuda()
-        if self.opt.is_object:
+        if self.opt.is_object and not self.opt.old_version:
             input_semantics = data['label'].float()
         else:
             # create one-hot label map

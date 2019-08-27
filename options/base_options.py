@@ -83,6 +83,7 @@ class BaseOptions():
         parser.add_argument('--position_encode', action='store_true', help='input position alont with real image into encoder')
         parser.add_argument('--use_image', type=str, default='', help='input position alont with real image into encoder')
         parser.add_argument('--use_postfix', type=str, default='', help='postfix appended to test time output folder')
+        parser.add_argument('--old_version', action='store_true', help='if true, it is the 2-channel version')
 
 
         self.initialized = True
@@ -176,7 +177,7 @@ class BaseOptions():
         # Set semantic_nc based on the option.
         # This will be convenient in many places
         opt.semantic_nc = (1 if opt.is_object else opt.label_nc) + \
-            (1 if opt.contain_dontcare_label and not opt.is_object else 0) + \
+            (1 if opt.contain_dontcare_label and (not opt.is_object or opt.old_version) else 0 ) + \
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \
             (1 if opt.use_part else 0)  + \
