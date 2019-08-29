@@ -108,8 +108,7 @@ class Pix2pixDataset(BaseDataset):
                 segm_data = np.array(label).astype(data_type)
                 mask = 1-(segm_data==3)
                 depth_data = depth_data * mask
-                min_val = np.partition(np.unique(depth_data), 2)[1]
-                depth_data[depth_data == 0] = min_val
+                depth_data[depth_data == 0] = np.max(depth_data)
                 depth = Image.fromarray(depth_data.astype(data_type), mode=im_mode)
 #            if depth.mode=='I':
 #                data = np.array(depth).astype(float)/10
@@ -118,7 +117,8 @@ class Pix2pixDataset(BaseDataset):
             depth_tensor = transform_label(depth).float() * 255.0
             if self.opt.dataset_mode == 'interiornet':
                 depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
-            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+            depth_tensor = depth_tensor-torch.min(depth_tensor)
+            depth_tensor = (depth_tensor/torch.max(depth_tensor)-0.5) *2.0
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
