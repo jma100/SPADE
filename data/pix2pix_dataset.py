@@ -105,10 +105,12 @@ class Pix2pixDataset(BaseDataset):
                 # set sky depth to min
                 depth_data = np.array(depth)
                 data_type = depth_data.dtype
-                segm_data = np.array(label).astype(data_type)
+                segm_data = np.array(label)
                 mask = 1-(segm_data==3)
+                mask = mask.astype(data_type)
                 depth_data = depth_data * mask
-                depth_data[depth_data == 0] = np.max(depth_data)
+                min_val = np.partition(np.unique(depth_data), 2)[1]
+                depth_data[depth_data == 0] = min_val
                 depth = Image.fromarray(depth_data.astype(data_type), mode=im_mode)
 #            if depth.mode=='I':
 #                data = np.array(depth).astype(float)/10
@@ -119,6 +121,8 @@ class Pix2pixDataset(BaseDataset):
                 depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
             depth_tensor = depth_tensor-torch.min(depth_tensor)
             depth_tensor = (depth_tensor/torch.max(depth_tensor)-0.5) *2.0
+#            if self.opt.phase != "train":
+#                depth_tensor = depth_tensor * -1
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
