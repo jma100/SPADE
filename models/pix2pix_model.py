@@ -270,8 +270,7 @@ class Pix2PixModel(torch.nn.Module):
         CycleZ_loss = None
         if self.opt.use_vae:
             if self.opt.use_image != '':
-                z, mu, logvar = self.encode_z(input_dict['encode'])
-                print('encoded')
+                encode_input = input_dict['encode']
             elif self.opt.real_background:
                 encode_input = input_dict['fg']
             else:

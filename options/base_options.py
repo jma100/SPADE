@@ -60,6 +60,8 @@ class BaseOptions():
         parser.add_argument('--init_variance', type=float, default=0.02, help='variance of the initialization distribution')
         parser.add_argument('--z_dim', type=int, default=256,
                             help="dimension of the latent z vector")
+        parser.add_argument('--w_dim', type=int, default=256,
+                            help="dimension of the intermediate w vector, can only be a perfect square value, e.g. 256, 1024")
 
         # for instance-wise features
         parser.add_argument('--no_instance', action='store_true', help='if specified, do *not* add instance map as input')
@@ -70,6 +72,7 @@ class BaseOptions():
         parser.add_argument('--use_material', action='store_true', help='enable training with material mask')
         parser.add_argument('--use_normal', action='store_true', help='enable training with surface normals')
         parser.add_argument('--use_part', action='store_true', help='enable training with part segmentation')
+        parser.add_argument('--use_style', action='store_true', help='input style vector into SPADE module')
         parser.add_argument('--material_nc', type=int, default=0, help='# of material classes, from unified parsing')
         parser.add_argument('--use_illumination', action='store_true', help='enable training with illumination map')
         parser.add_argument('--mask_sky', action='store_true', help='set sky to minimum value')
@@ -183,6 +186,7 @@ class BaseOptions():
             (1 if opt.use_part else 0)  + \
             (3 if opt.use_normal else 0)  + \
             (1 if opt.use_material else 0) + \
+            (1 if opt.use_style else 0) + \
             (1 if opt.use_illumination else 0) + \
             (3 if opt.add_hint else 0) + \
             (opt.acgan_nc if opt.use_acgan else 0)
