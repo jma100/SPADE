@@ -61,13 +61,13 @@ class ADE20KObjDataset(Pix2pixDataset):
             material_paths = []
             part_paths = []
             for i,p in enumerate(metadata_list):
-                if 'depth' in p:
+                if 'depth' in p and opt.use_depth:
                     depth_paths.append(p)
-                elif 'normal' in p:
+                elif 'normal' in p and opt.use_normal:
                     normal_paths.append(p)
-                elif 'material' in p:
+                elif 'material' in p and opt.use_material:
                     material_paths.append(p)
-                elif 'part' in p:
+                elif 'part' in p and opt.use_part:
                     part_paths.append(p)
 
             paths['depth'] = depth_paths
