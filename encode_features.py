@@ -28,18 +28,19 @@ for i, data_i in enumerate(dataloader):
         break
 
     z, mu, logvar = model(data_i, mode='encode_only')
-    num, _ = mu.size()
-    start = i*opt.batchSize
-    end = start+num
     mu_collector.append(mu.cpu().detach().numpy())
     var_collector.append(logvar.cpu().detach().numpy())
     z_collector.append(z.cpu().detach().numpy())
-#    mu_collector[start:end, :] = mu.cpu().detach().numpy()
-#    var_collector[start:end, :] = logvar.cpu().detach().numpy()
-#    z_collector[start:end, :] = z.cpu().detach().numpy()
-    path_collector += data_i['path']
+    path_collector.append(data_i['path'])
+
+mu_collector = np.concatenate(mu_collector, axis=0)
+var_collector = np.concatenate(var_collector, axis=0)
+z_collector = np.concatenate(z_collector, axis=0)
+data = {'z': z_collector, 'mu': mu_collector, 'logvar':var_collector, 'path': path_collector}
+np.save('checkpoints/%s/epoch_%03d_lsun_features.npy' % (opt.name,int(opt.which_epoch)), data)
 
 
+'''
 from sklearn.cluster import KMeans
 import shutil
 n_clusters = 10
@@ -132,4 +133,4 @@ y_kmeans = new_kmeans.predict(reduced_data)
 plt.scatter(reduced_data[:, 0], reduced_data[:, 1], c=y_kmeans, s=50, cmap='viridis')
 new_centers = new_kmeans.cluster_centers_
 plt.scatter(new_centers[:, 0], new_centers[:, 1], c='black', s=200, alpha=0.5);
-plt.savefig(os.path.join(outdir, "cluster_together_%03d_%02d.png" % (epoch, n_clusters)))
+plt.savefig(os.path.join(outdir, "cluster_together_%03d_%02d.png" % (epoch, n_clusters)))'''
