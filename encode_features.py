@@ -7,6 +7,7 @@ from models.pix2pix_model import Pix2PixModel
 from util.visualizer import Visualizer
 from util import html
 import numpy as np
+import itertools
 
 opt = TestOptions().parse()
 
@@ -36,6 +37,7 @@ for i, data_i in enumerate(dataloader):
 mu_collector = np.concatenate(mu_collector, axis=0)
 var_collector = np.concatenate(var_collector, axis=0)
 z_collector = np.concatenate(z_collector, axis=0)
+path_collector = list(itertools.chain.from_iterable(path_collector)) 
 data = {'z': z_collector, 'mu': mu_collector, 'logvar':var_collector, 'path': path_collector}
 np.save('checkpoints/%s/epoch_%03d_lsun_features.npy' % (opt.name,int(opt.which_epoch)), data)
 
