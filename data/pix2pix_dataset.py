@@ -181,9 +181,10 @@ class Pix2pixDataset(BaseDataset):
                             data_instance['object_class'] = object_class
                         if self.opt.no_background:
                             data_instance['image'] = data_instance['image'] * data_instance['label'].long().float()
-                        if self.opt.real_background:
+                        if self.opt.real_background or self.opt.encode_background:
                             data_instance['fg'] = data_instance['image'] * data_instance['label'].long().float()
                             data_instance['bg'] = data_instance['image'] * (1-data_instance['label'].long()).float()
+                            
                         data_instance['instance'] = 0
                         data_instance['path'] = image_path
                         if self.opt.use_depth:
@@ -233,7 +234,7 @@ class Pix2pixDataset(BaseDataset):
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
 
-        if self.opt.real_background:
+        if self.opt.real_background or self.opt.encode_background:
             # foreground, feed into encoder
             fg_tensor = image_tensor * label_tensor.long().float()
             # background, combined with generated foreground
@@ -271,7 +272,7 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.use_acgan:
             input_dict['object'] = object_tensor
             input_dict['object_class'] = object_class
-        if self.opt.real_background:
+        if self.opt.real_background or self.opt.encode_background:
             input_dict['fg'] = fg_tensor
             input_dict['bg'] = bg_tensor
         if self.opt.no_background:

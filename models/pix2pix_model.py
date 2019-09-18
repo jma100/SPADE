@@ -131,7 +131,7 @@ class Pix2PixModel(torch.nn.Module):
                 data['material'] = data['material'].cuda()
             if self.opt.use_part:
                 data['part'] = data['part'].cuda()
-            if self.opt.real_background:
+            if self.opt.real_background or self.opt.encode_background:
                 data['fg'] = data['fg'].cuda()
                 data['bg'] = data['bg'].cuda()
             if self.opt.use_acgan:
@@ -177,7 +177,7 @@ class Pix2PixModel(torch.nn.Module):
         input_dict = {'label': input_semantics, 'image': data['image']}
         if self.opt.use_acgan:
             input_dict['object_class'] = data['object_class']
-        if self.opt.real_background:
+        if self.opt.real_background or self.opt.encode_background:
             input_dict['fg'] = data['fg']
             input_dict['bg'] = data['bg']
         if self.opt.position_encode:
@@ -284,7 +284,7 @@ class Pix2PixModel(torch.nn.Module):
 
         fake_image = self.netG(input_semantics, z=z)
 
-        if self.opt.real_background:
+        if self.opt.real_background or self.opt.encode_background:
             bg = input_dict['bg']
             fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
 
