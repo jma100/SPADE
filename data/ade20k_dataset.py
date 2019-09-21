@@ -13,10 +13,11 @@ class ADE20KDataset(Pix2pixDataset):
     def modify_commandline_options(parser, is_train):
         parser = Pix2pixDataset.modify_commandline_options(parser, is_train)
         parser.set_defaults(preprocess_mode='resize_and_crop')
-        if is_train:
-            parser.set_defaults(load_size=286)
-        else:
-            parser.set_defaults(load_size=256)
+#        if is_train:
+#            parser.set_defaults(load_size=286)
+#        else:
+#            parser.set_defaults(load_size=256)
+        parser.set_defaults(load_size=256)
         parser.set_defaults(crop_size=256)
         parser.set_defaults(display_winsize=256)
         parser.set_defaults(label_nc=150)
@@ -24,6 +25,8 @@ class ADE20KDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_read=False)
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
+        parser.set_defaults(nThreads=16)
+        parser.set_defaults(use_vae=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
         parser.add_argument('--metadata_list', type=str, help='import list of metadata files (depth, normal, material, part)')
         return parser
