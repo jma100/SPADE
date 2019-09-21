@@ -54,8 +54,8 @@ class Pix2PixModel(torch.nn.Module):
             return z, mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
-                fake_image, _ = self.generate_fake(data)
-            return fake_image
+                fake_image, fake_features, _ = self.generate_fake(data)
+            return fake_image, fake_features
         else:
             raise ValueError("|mode| is invalid")
 
@@ -108,7 +108,7 @@ class Pix2PixModel(torch.nn.Module):
         G_losses = {}
 
         input_semantics, real_image = input_dict['label'], input_dict['image']
-        fake_image, KLD_loss = self.generate_fake(
+        fake_image, fake_features, KLD_loss = self.generate_fake(
             input_dict, compute_kld_loss=self.opt.use_vae)
 
         if self.opt.use_vae:
@@ -195,16 +195,16 @@ class Pix2PixModel(torch.nn.Module):
             if compute_kld_loss:
                 KLD_loss = self.KLDLoss(mu, logvar) * self.opt.lambda_kld
 
-        fake_image = self.netG(input_semantics, z=z)
+        fake_image, fake_features  = self.netG(input_semantics, z=z)
 
         if self.opt.real_background:
             bg = input_dict['bg']
-            fake_image = bg.cuda() + fake_image * (bg == 0).float().cuda()
+            fake_features = bg.cuda() + fake_features * (bg == 0).float().cuda()
 
         assert (not compute_kld_loss) or self.opt.use_vae, \
             "You cannot compute KLD loss if opt.use_vae == False"
 
-        return fake_image, KLD_loss
+        return fake_image, fake_features, KLD_loss
 
     # Given fake and real image, return the prediction of discriminator
     # for each fake and real image.

@@ -51,10 +51,13 @@ class MergeTrainer():
 
     def run_object_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            object_generated = self.merge_model.module.net_object(data, mode='inference')
+            object_generated, object_features = self.merge_model.module.net_object(data, mode='inference')
             object_generated = object_generated.detach()
             object_generated.requires_grad_()
             self.object_generated = object_generated
+            object_features = object_features.detach()
+            object_features.requires_grad_()
+            self.object_features = object_features
         else:
             self.optimizer_G_object.zero_grad()
             object_g_losses, object_generated = self.merge_model.module.net_object(data, mode='generator')
@@ -75,10 +78,13 @@ class MergeTrainer():
 
     def run_global_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            global_generated = self.merge_model.module.net_global(data, mode='inference')
+            global_generated, global_features = self.merge_model.module.net_global(data, mode='inference')
             global_generated = global_generated.detach()
             global_generated.requires_grad_()
             self.global_generated = global_generated
+            global_features = global_features.detach()
+            global_features.requires_grad_()
+            self.global_features = global_features
         else:
             self.optimizer_G_global.zero_grad()
             global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')
@@ -105,7 +111,7 @@ class MergeTrainer():
                 {**self.global_g_losses, **self.global_d_losses}]
 
     def get_latest_generated(self):
-        return self.generated, self.object_generated, self.global_generated
+        return self.generated, self.object_generated, self.global_generated, self.object_features, self.global_features
 
     def update_learning_rate(self, epoch):
         self.update_learning_rate(epoch)

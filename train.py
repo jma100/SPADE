@@ -53,6 +53,7 @@ for epoch in iter_counter.training_epochs():
             if i % opt.D_steps_per_G == 0:
                 merge_trainer.run_object_generator_one_step(data_i[name])
                 data_i[name]['generated'] = merge_trainer.object_generated
+                data_i[name]['features'] = merge_trainer.object_features
             # train object discriminator
             if not opt.load_pretrain:
                 merge_trainer.run_object_discriminator_one_step(data_i[name])
@@ -64,6 +65,7 @@ for epoch in iter_counter.training_epochs():
         if i % opt.D_steps_per_G == 0:
             merge_trainer.run_global_generator_one_step(data_i['global'])
             data_i['global']['generated'] = merge_trainer.global_generated
+            data_i['global']['features'] = merge_trainer.global_features
 
         # train global discriminator
         if not opt.load_pretrain:
@@ -92,9 +94,13 @@ for epoch in iter_counter.training_epochs():
             visualizer.plot_current_errors(losses, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_displaying():
-            visuals = OrderedDict([('input_label', data_i['global']['label']),
-                                   ('synthesized_image', data_i['generated']),
-                                   ('real_image', data_i['global']['image'])])
+            visuals = OrderedDict([('input_label', data_i['global']['label'])])
+            for n in range(opt.max_object_per_image):
+                name = 'object_%03d' % n
+                visuals[name] = data_i[name]['generated']
+            visuals['synthesized_global'] = data_i['global']['generated']
+            visuals['combined_image'] = data_i['generated']
+            visuals['real_image'] = data_i['global']['image']
 
             visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
 

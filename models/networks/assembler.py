@@ -19,7 +19,7 @@ class Assembler(BaseNetwork):
 
 
     def forward(self, data):
-        global_gen = data['global']['generated'].clone()
+        global_gen = data['global']['features'].clone()
         _, _, height, width = global_gen.size()
         global_label = F.interpolate(data['global']['label'], size=(height, width), mode='nearest')
         for i in range(global_gen.size()[0]):
@@ -31,9 +31,9 @@ class Assembler(BaseNetwork):
 #                print('----------------assembler-------------')
 #                print(left, up, right, down)
 #                print(data['global']['path'][i])
-                instance_resized_gen = F.interpolate(instance_data['generated'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
+                instance_resized_gen = F.interpolate(instance_data['features'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
                 instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
-                global_gen[i:i+1, :, up:down, left:right] = data['global']['generated'][i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
+                global_gen[i:i+1, :, up:down, left:right] = data['global']['features'][i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
         global_gen = self.up(global_gen)
         global_gen = self.up_3(global_gen, global_label)
         global_gen = self.conv_img(F.leaky_relu(global_gen, 2e-1, inplace=True))
