@@ -146,17 +146,19 @@ class MergeModel(torch.nn.Module):
             if self.opt.position_encode and self.opt.is_object:
                 data['pos_x'] = data['pos_x'].cuda()
                 data['pos_y'] = data['pos_y'].cuda()
-        if self.opt.is_object:
-            input_semantics = data['label'].float()
-        else:
-            # create one-hot label map
+
+
+        if True:
             label_map = data['label']
             bs, _, h, w = label_map.size()
             nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
                 else self.opt.label_nc
             input_label = self.FloatTensor(bs, nc, h, w).zero_()
             input_semantics = input_label.scatter_(1, label_map, 1.0)
-
+        #if self.opt.is_object:
+        #    input_semantics = data['label'].float()
+        #else:
+        #    # create one-hot label map
         # concatenate instance map if it exists
         if not self.opt.no_instance:
             inst_map = data['instance']

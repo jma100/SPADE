@@ -93,13 +93,17 @@ class SPADE(nn.Module):
         self.mlp_gamma = nn.Conv2d(nhidden, norm_nc, kernel_size=ks, padding=pw)
         self.mlp_beta = nn.Conv2d(nhidden, norm_nc, kernel_size=ks, padding=pw)
 
-    def forward(self, x, segmap):
+    def forward(self, x, segmap, w):
 
         # Part 1. generate parameter-free normalized activations
         normalized = self.param_free_norm(x)
 
+        # Part 1.5 reshaping, interpolating and concatenating z
+        w = F.interpolate(w, size=x.size()[2:], mode='bilinear')
+
         # Part 2. produce scaling and bias conditioned on semantic map
         segmap = F.interpolate(segmap, size=x.size()[2:], mode='nearest')
+        segmap = torch.cat((segmap, w), dim=1)
         actv = self.mlp_shared(segmap)
         gamma = self.mlp_gamma(actv)
         beta = self.mlp_beta(actv)

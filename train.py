@@ -51,6 +51,7 @@ for epoch in iter_counter.training_epochs():
             name = 'object_%03d' % n
             # train object generator
             if i % opt.D_steps_per_G == 0:
+                import pdb;pdb.set_trace()
                 merge_trainer.run_object_generator_one_step(data_i[name])
                 data_i[name]['generated'] = merge_trainer.object_generated
                 data_i[name]['features'] = merge_trainer.object_features
