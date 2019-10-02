@@ -120,14 +120,14 @@ class SPADEGenerator(BaseNetwork):
         x = self.up_1(x, seg, z)
         x = self.up(x)
         x = self.up_2(x, seg, z)
-        y = self.up(x)
-        y = self.up_3(y, seg, z)
+        x = self.up(x)
+        x = self.up_3(x, seg, z)
 
         if self.opt.num_upsampling_layers == 'most':
             x = self.up(x)
             x = self.up_4(x, seg, z)
 
-        y = self.conv_img(F.leaky_relu(y, 2e-1, inplace=True))
+        y = self.conv_img(F.leaky_relu(x, 2e-1, inplace=True))
         y = F.tanh(y)
         # y is generated image using pretrained weights
         # x is intermediate features
