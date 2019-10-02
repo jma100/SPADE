@@ -22,11 +22,9 @@ print(' '.join(sys.argv))
 
 # load the dataset
 dataloader = data.create_dataloader(opt)
-#import pdb; pdb.set_trace()
 
 # create trainer for our model
 merge_trainer = MergeTrainer(opt) # implement
-#import pdb; pdb.set_trace()
 
 # create tool for counting iterations
 iter_counter = IterationCounter(opt, len(dataloader))
@@ -42,8 +40,7 @@ for epoch in iter_counter.training_epochs():
         for obj, obj_data in data_i.items():
             opt.is_object = True if obj != 'global' else False
             data_i[obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
-#        import pdb; pdb.set_trace()
-
+        z = []
         # Training
         # train each object
         opt.is_object = True
@@ -51,15 +48,18 @@ for epoch in iter_counter.training_epochs():
             name = 'object_%03d' % n
             # train object generator
             if i % opt.D_steps_per_G == 0:
-                import pdb;pdb.set_trace()
                 merge_trainer.run_object_generator_one_step(data_i[name])
                 data_i[name]['generated'] = merge_trainer.object_generated
                 data_i[name]['features'] = merge_trainer.object_features
+                data_i[name]['z'] = merge_trainer.object_z
+                if z == []:
+                    z = data_i[name]['z']
+                else:
+                    z = torch.cat([z, data_i[name]['z']], 1)
             # train object discriminator
             if not opt.load_pretrain:
                 merge_trainer.run_object_discriminator_one_step(data_i[name])
         torch.cuda.empty_cache()
-#        import pdb; pdb.set_trace()
 
         opt.is_object = False
         # train global generator
@@ -67,12 +67,14 @@ for epoch in iter_counter.training_epochs():
             merge_trainer.run_global_generator_one_step(data_i['global'])
             data_i['global']['generated'] = merge_trainer.global_generated
             data_i['global']['features'] = merge_trainer.global_features
+            data_i['global']['z'] = merge_trainer.global_z
+            z = torch.cat([z, data_i['global']['z']], 1)
+            data_i['z'] = z
 
         # train global discriminator
         if not opt.load_pretrain:
             merge_trainer.run_global_discriminator_one_step(data_i['global'])
         torch.cuda.empty_cache()
-#        import pdb; pdb.set_trace()
 
         # train merge step
         if i % opt.D_steps_per_G == 0:
@@ -82,7 +84,6 @@ for epoch in iter_counter.training_epochs():
         # train overall discriminator
         merge_trainer.run_discriminator_one_step(data_i)
 
-#        import pdb; pdb.set_trace()
         torch.cuda.empty_cache()
         # Visualizations
         if iter_counter.needs_printing():

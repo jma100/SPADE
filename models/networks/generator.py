@@ -27,7 +27,7 @@ class SPADEGenerator(BaseNetwork):
         self.opt = opt
         print('########################3')
         print(opt.is_object)
-        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = (2 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
         nf = opt.ngf
 
         self.sw, self.sh = self.compute_latent_vector_size(opt)
@@ -86,7 +86,6 @@ class SPADEGenerator(BaseNetwork):
 
     def forward(self, input, z=None):
         seg = input
-
         if self.opt.use_vae:
             # we sample z from unit normal and reshape the tensor
             if z is None:
@@ -128,10 +127,11 @@ class SPADEGenerator(BaseNetwork):
             x = self.up(x)
             x = self.up_4(x, seg, z)
 
-#        x = self.conv_img(F.leaky_relu(x, 2e-1, inplace=True))
-#        x = F.tanh(x)
-
-        return x, y
+        y = self.conv_img(F.leaky_relu(y, 2e-1, inplace=True))
+        y = F.tanh(y)
+        # y is generated image using pretrained weights
+        # x is intermediate features
+        return y, x
 
 
 class Pix2PixHDGenerator(BaseNetwork):

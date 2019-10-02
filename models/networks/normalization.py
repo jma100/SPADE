@@ -107,6 +107,8 @@ class SPADE(nn.Module):
         actv = self.mlp_shared(segmap)
         gamma = self.mlp_gamma(actv)
         beta = self.mlp_beta(actv)
+        #print('normalized', normalized.size(), 'gamma', gamma.size(), 'beta', beta.size(), 'x', x.size())
+
 
         # apply scale and bias
         out = normalized * (1 + gamma) + beta

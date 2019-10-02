@@ -51,13 +51,15 @@ class MergeTrainer():
 
     def run_object_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            object_generated, object_features = self.merge_model.module.net_object(data, mode='inference')
+            # Freeze model, only use for inference
+            object_generated, object_features, object_z = self.merge_model.module.net_object(data, mode='inference')
             object_generated = object_generated.detach()
             object_generated.requires_grad_()
             self.object_generated = object_generated
             object_features = object_features.detach()
             object_features.requires_grad_()
             self.object_features = object_features
+            self.object_z = object_z.detach()
         else:
             self.optimizer_G_object.zero_grad()
             object_g_losses, object_generated = self.merge_model.module.net_object(data, mode='generator')
@@ -78,13 +80,14 @@ class MergeTrainer():
 
     def run_global_generator_one_step(self, data):
         if self.opt.load_pretrain:
-            global_generated, global_features = self.merge_model.module.net_global(data, mode='inference')
+            global_generated, global_features, global_z = self.merge_model.module.net_global(data, mode='inference')
             global_generated = global_generated.detach()
             global_generated.requires_grad_()
             self.global_generated = global_generated
             global_features = global_features.detach()
             global_features.requires_grad_()
             self.global_features = global_features
+            self.global_z = global_z.detach()
         else:
             self.optimizer_G_global.zero_grad()
             global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')

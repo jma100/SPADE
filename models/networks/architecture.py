@@ -19,12 +19,16 @@ from models.networks.normalization import SPADE
 # class-conditional GAN architecture using residual block.
 # The code was inspired from https://github.com/LMescheder/GAN_stability.
 class SPADEResnetBlock(nn.Module):
-    def __init__(self, fin, fout, opt):
+    def __init__(self, fin, fout, opt, assemble=False):
         super().__init__()
         # Attributes
         self.learned_shortcut = (fin != fout)
         fmiddle = min(fin, fout)
-        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0) +(1 if opt.use_style else 0)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        if opt.use_style and assemble:
+            input_nc += 2
+        elif opt.use_style:
+            input_nc += 1
 
         # create conv layers
         self.conv_0 = nn.Conv2d(fin, fmiddle, kernel_size=3, padding=1)
@@ -43,16 +47,25 @@ class SPADEResnetBlock(nn.Module):
         spade_config_str = opt.norm_G.replace('spectral', '')
         self.norm_0 = SPADE(spade_config_str, fin, input_nc)
         self.norm_1 = SPADE(spade_config_str, fmiddle, input_nc)
+        self.assemble = assemble
         if self.learned_shortcut:
             self.norm_s = SPADE(spade_config_str, fin, input_nc)
-        self.fc = nn.Linear(opt.z_dim, opt.w_dim)
+        if assemble:
+            self.fc = nn.Linear(opt.z_dim*2, opt.w_dim*2)
+        else:
+            self.fc = nn.Linear(opt.z_dim, opt.w_dim)
         self.w_dim = opt.w_dim
 
     # note the resnet block with SPADE also takes in |seg|,
     # the semantic segmentation map as input
     def forward(self, x, seg, z):
         w = self.fc(z)
-        w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))
+        #print('W', w.size(), 'X', x.size())
+        if self.assemble:
+            w = w.view(-1, 2, int(self.w_dim**0.5), int(self.w_dim**0.5))
+        else:
+            w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))
+        #print(w.size())
         x_s = self.shortcut(x, seg, w)
 
         dx = self.conv_0(self.actvn(self.norm_0(x, seg, w)))

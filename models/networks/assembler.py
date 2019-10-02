@@ -11,20 +11,21 @@ class Assembler(BaseNetwork):
         self.opt = opt
         nf = opt.ngf
         final_nc = nf
-        self.enhance_1 = SPADEResnetBlock(self.opt.output_nc, self.opt.output_nc, opt)
-        self.enhance_2 = SPADEResnetBlock(self.opt.output_nc, self.opt.output_nc, opt)
+        self.enhance_1 = SPADEResnetBlock(1 * nf, 1 * nf, opt, assemble=True)
+        self.enhance_2 = SPADEResnetBlock(1 * nf, 1 * nf, opt, assemble=True)
         self.conv_img = nn.Conv2d(final_nc, self.opt.output_nc, 3, padding=1)
         self.up = nn.Upsample(scale_factor=2)
-        self.up_3 = SPADEResnetBlock(2 * nf, 1 * nf, opt)
+        self.up_3 = SPADEResnetBlock(2 * nf, 1 * nf, opt, assemble=True)
 
 
     def forward(self, data):
+        z = data['z']
         global_gen = data['global']['features'].clone()
         _, _, height, width = global_gen.size()
         global_label = F.interpolate(data['global']['label'], size=(height, width), mode='nearest')
         for i in range(global_gen.size()[0]):
             for obj, obj_data in data.items():
-                if obj == 'global' or obj == 'generated':
+                if obj in ['global', 'z', 'generated']:
                     continue
                 instance_data = data[obj]
                 left, up, right, down = [f[i].item()//2 for f in instance_data['bbox']]
@@ -35,10 +36,10 @@ class Assembler(BaseNetwork):
                 instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
                 global_gen[i:i+1, :, up:down, left:right] = data['global']['features'][i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
         global_gen = self.up(global_gen)
-        global_gen = self.up_3(global_gen, global_label)
+        global_gen = self.up_3(global_gen, global_label, z)
+        global_gen = self.enhance_1(global_gen, data['global']['label'], z)
+        global_gen = self.enhance_2(global_gen, data['global']['label'], z)
         global_gen = self.conv_img(F.leaky_relu(global_gen, 2e-1, inplace=True))
         global_gen = F.tanh(global_gen)
-        global_gen = self.enhance_1(global_gen, data['global']['label'])
-        global_gen = self.enhance_2(global_gen, data['global']['label'])
         return global_gen, data['global']['image'], data['global']['label']
 
