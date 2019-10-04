@@ -183,6 +183,8 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.position_encode:
             input_dict['pos_x'] = data['pos_x']
             input_dict['pos_y'] = data['pos_y']
+        if self.opt.use_image != '':
+            input_dict['encode'] = data['encode']
         return input_dict
 
     def compute_generator_loss(self, input_semantics, real_image, input_dict):
