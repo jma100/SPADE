@@ -47,7 +47,7 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         image_paths = []
         label_paths = []
         for i,p in enumerate(training_list):
-            if 'semantic' in p:
+            if 'semantic' in p or 'png' in p:
                 label_paths.append(p)
             else:
                 image_paths.append(p)
