@@ -2,6 +2,7 @@ import torch.nn.functional as F
 from models.networks.architecture import SPADEResnetBlock as SPADEResnetBlock
 from models.networks.base_network import BaseNetwork
 import torch.nn as nn
+import torch
 
 class Assembler(BaseNetwork):
     '''Same architecture as the image discriminator'''
@@ -18,10 +19,9 @@ class Assembler(BaseNetwork):
 
     def forward(self, data):
         z = data['z']
-        global_gen = data['global']['features'].clone()
         _, _, height, width = global_gen.size()
         global_label = F.interpolate(data['global']['label'], size=(height, width), mode='nearest')
-        object_layer = data['global']['features'].clone()
+        object_layer = data['global']['features']
         for i in range(global_gen.size()[0]):
             for obj, obj_data in data.items():
                 if obj in ['global', 'z', 'generated']:
@@ -34,9 +34,12 @@ class Assembler(BaseNetwork):
                 instance_resized_gen = F.interpolate(instance_data['features'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
                 instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
                 object_layer[i:i+1, :, up:down, left:right] = object_layer[i:i+1, :, up:down, left:right] * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
-        global_gen = torch.cat((global_gen, object_layer), dim=1)
-        global_gen = self.conv_merge(F.leaky_relu(global_gen, 2e-1, inplace=True))
-        global_gen = F.leaky_relu(global_gen, 2e-1, inplace=True)
+        print('##################################################')
+        print(torch.eq(data['global']['features'], object_layer))
+        global_gen = torch.cat((data['global']['features'], object_layer), dim=1)
+        global_gen = self.conv_merge(global_gen)
+#        global_gen = self.conv_merge(F.leaky_relu(global_gen, 2e-1, inplace=True))
+#        global_gen = F.leaky_relu(global_gen, 2e-1, inplace=True)
         global_gen = self.enhance_1(global_gen, data['global']['label'], z)
         global_gen = self.enhance_2(global_gen, data['global']['label'], z)
         global_gen = self.conv_img(F.leaky_relu(global_gen, 2e-1, inplace=True))
