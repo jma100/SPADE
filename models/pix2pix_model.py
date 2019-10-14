@@ -194,6 +194,9 @@ class Pix2PixModel(torch.nn.Module):
         fake_image, KLD_loss, CycleZ_loss = self.generate_fake(
             input_semantics, real_image, input_dict, compute_kld_loss=self.opt.use_vae, compute_cyclez_loss=self.opt.use_cyclez)
 
+        masked_fake = fake_image * input_dict['label']
+        masked_real = real_image * input_dict['label']
+
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
 
@@ -202,7 +205,7 @@ class Pix2PixModel(torch.nn.Module):
                 input_semantics, fake_image, real_image)
         else:
             pred_fake, pred_real = self.discriminate(
-                input_semantics, fake_image, real_image)
+                input_semantics, masked_fake, masked_real)
 
         G_losses['GAN'] = self.criterionGAN(pred_fake, True,
                                             for_discriminator=False)
@@ -239,8 +242,10 @@ class Pix2PixModel(torch.nn.Module):
         D_losses = {}
         with torch.no_grad():
             fake_image, _, _ = self.generate_fake(input_semantics, real_image, input_dict)
+            fake_image = fake_image * input_dict['label']
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
+            real_image = real_image * input_dict['label']
 
         if self.opt.use_acgan:
             pred_fake, pred_real, class_fake, class_real = self.discriminate(
