@@ -123,9 +123,7 @@ class NLayerDiscriminator(BaseNetwork):
         if opt.add_hint:
             input_nc += 3
         if opt.use_acgan:
-            input_nc += 1
-        if opt.use_scene:
-            input_nc += 1
+            input_nc += opt.acgan_nc
         return input_nc
 
     def forward(self, input):

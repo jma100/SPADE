@@ -44,7 +44,7 @@ class Pix2PixModel(torch.nn.Module):
     def forward(self, data, mode):
         if self.opt.real_background and self.opt.use_acgan:
             input_semantics, real_image, fg, bg, object_class = self.preprocess_input(data)
-        elif self.opt.use_acgan:
+        elif self.opt.no_background and self.opt.use_acgan:
             input_semantics, real_image, object_class = self.preprocess_input(data)
         elif self.opt.real_background:
             input_semantics, real_image, fg, bg = self.preprocess_input(data)
@@ -55,7 +55,7 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background and self.opt.use_acgan:
                 g_loss, generated = self.compute_generator_loss(
                     input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
-            elif self.opt.use_acgan:
+            elif self.opt.no_background and self.opt.use_acgan:
                 g_loss, generated = self.compute_generator_loss(
                     input_semantics, real_image, object_class=object_class)
             elif self.opt.real_background:
@@ -69,7 +69,7 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background and self.opt.use_acgan:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
-            elif self.opt.use_acgan:
+            elif self.opt.no_background and self.opt.use_acgan:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, object_class=object_class)
 
@@ -144,8 +144,6 @@ class Pix2PixModel(torch.nn.Module):
             data['material'] = data['material'].long()
         if self.opt.use_acgan:
             data['object'] = data['object'].long()
-        if self.opt.use_scene:
-            data['scene'] = data['scene'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -163,8 +161,6 @@ class Pix2PixModel(torch.nn.Module):
                 data['bg'] = data['bg'].cuda()
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
-            if self.opt.use_scene:
-                data['scene'] = data['scene'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -192,10 +188,10 @@ class Pix2PixModel(torch.nn.Module):
 
         # create one-hot object label
         if self.opt.use_acgan:
-            input_semantics = torch.cat((input_semantics, data['object'].float()), dim=1)
-
-        if self.opt.use_scene:
-            input_semantics = torch.cat((input_semantics, data['scene'].float()), dim=1)
+            object_map = data['object']
+            input_object = self.FloatTensor(bs, self.opt.acgan_nc, h, w).zero_()
+            input_object_map = input_object.scatter_(1, object_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
 
         if self.opt.use_illumination:
             input_semantics = torch.cat((input_semantics, data['illumination']), dim=1)
@@ -206,7 +202,7 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.real_background and self.opt.use_acgan:
             return input_semantics, data['image'], data['fg'], data['bg'], data['object_class']
 
-        if self.opt.use_acgan:
+        if self.opt.no_background and self.opt.use_acgan:
             return input_semantics, data['image'], data['object_class']
 
         if self.opt.real_background:
