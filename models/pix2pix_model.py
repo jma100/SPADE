@@ -192,10 +192,18 @@ class Pix2PixModel(torch.nn.Module):
 
         # create one-hot object label
         if self.opt.use_acgan:
-            input_semantics = torch.cat((input_semantics, data['object'].float()), dim=1)
+            object_map = data['object']
+            input_object = self.FloatTensor(bs, self.opt.object_nc, h, w).zero_()
+            input_object_map = input_object.scatter_(1, object_map, 1.0)
+            print(input_object_map)
+            import pdb; pdb.set_trace()
+            input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
 
         if self.opt.use_scene:
-            input_semantics = torch.cat((input_semantics, data['scene'].float()), dim=1)
+            scene_map = data['scene']
+            input_scene = self.FloatTensor(bs, self.opt.scene_nc, h, w).zero_()
+            input_scene_map = input_scene.scatter_(1, scene_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_scene_map), dim=1)
 
         if self.opt.use_illumination:
             input_semantics = torch.cat((input_semantics, data['illumination']), dim=1)

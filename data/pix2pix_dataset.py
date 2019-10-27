@@ -50,6 +50,9 @@ class Pix2pixDataset(BaseDataset):
         if opt.use_scene:
             self.scene_mapping = {'bathroom':0, 'bedroom':1, 'kitchen':2, 'living_room':3, 'childs_room':4, 'dining_room':5, 'dorm_room':6, 'hotel_room':7}
 
+        if opt.use_acgan:
+            self.mapping = {8: 0, 9: 1, 11: 2, 15: 3, 16: 4, 18: 5, 19: 6, 20: 7, 23: 8, 24: 9, 25: 10, 28: 11, 29: 12, 31: 13, 32: 14, 34: 15, 36: 16, 37: 17, 38: 18, 39: 19, 40: 20, 42: 21, 43: 22, 44: 23, 45: 24, 46: 25, 48: 26, 50: 27, 51: 28, 54: 29, 56: 30, 57: 31, 58: 32, 59: 33, 60: 34, 63: 35, 64: 36, 65: 37, 66: 38, 67: 39, 68: 40, 70: 41, 71: 42, 72: 43, 74: 44, 75: 45, 76: 46, 82: 47, 83: 48, 86: 49, 87: 50, 90: 51, 93: 52, 96: 53, 98: 54, 99: 55, 100: 56, 101: 57, 107: 58, 108: 59, 109: 60, 111: 61, 113: 62, 116: 63, 118: 64, 119: 65, 120: 66, 121: 67, 122: 68, 125: 69, 126: 70, 130: 71, 132: 72, 133: 73, 134: 74, 135: 75, 136: 76, 138: 77, 139: 78, 140: 79, 143: 80, 144: 81, 145: 82, 146: 83, 147: 84, 148: 85, 149: 86, 150: 87}
+
         if opt.use_depth:
             util.natural_sort(depth_paths)
             depth_paths = depth_paths[:opt.max_dataset_size]
@@ -96,7 +99,7 @@ class Pix2pixDataset(BaseDataset):
 
         # object class label
         if self.opt.use_acgan:
-            object_class = int(label_path.split('/')[-2])
+            object_class = self.mapping[int(label_path.split('/')[-2])]
             object_tensor = torch.FloatTensor(1).fill_(object_class)
             object_tensor = object_tensor.expand_as(label_tensor)
 

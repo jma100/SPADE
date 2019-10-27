@@ -23,6 +23,8 @@ class ACGanDataset(Pix2pixDataset):
 #        parser.add_argument('--mapping_path', type=str, help='mapping dictionary for object categories')
         parser.set_defaults(use_acgan=True)
         parser.add_argument('--use_scene', type=str, default=True, help='use scene category as an input')
+        parser.add_argument('--object_nc', type=int, help='number of object classes')
+        parser.add_argument('--scene_nc', type=int, help='number of scene classes')
         return parser
 
     def get_paths(self, opt):
