@@ -22,19 +22,20 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
         if self.opt.use_acgan:
-            self.mapping = self.load_mapping()
-            label_paths, image_paths, instance_paths = self.get_paths(opt)
+#            self.mapping = self.load_mapping()
+            label_paths, image_paths, scene_paths, instance_paths = self.get_paths(opt)
         else:
             label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
 
-        util.natural_sort(label_paths)
-        util.natural_sort(image_paths)
-        if not opt.no_instance:
-            util.natural_sort(instance_paths)
+#        util.natural_sort(label_paths)
+#        util.natural_sort(image_paths)
+#        if not opt.no_instance:
+#            util.natural_sort(instance_paths)
 
         label_paths = label_paths[:opt.max_dataset_size]
         image_paths = image_paths[:opt.max_dataset_size]
         instance_paths = instance_paths[:opt.max_dataset_size]
+        scene_paths = scene_paths[:opt.max_dataset_size]
 
         if not opt.no_pairing_check:
             for path1, path2 in zip(label_paths, image_paths):
@@ -44,6 +45,10 @@ class Pix2pixDataset(BaseDataset):
         self.label_paths = label_paths
         self.image_paths = image_paths
         self.instance_paths = instance_paths
+        self.scene_paths = scene_paths
+
+        if opt.use_scene:
+            self.scene_mapping = {'bathroom':0, 'bedroom':1, 'kitchen':2, 'living_room':3, 'childs_room':4, 'dining_room':5, 'dorm_room':6, 'hotel_room':7}
 
         if opt.use_depth:
             util.natural_sort(depth_paths)
@@ -91,7 +96,7 @@ class Pix2pixDataset(BaseDataset):
 
         # object class label
         if self.opt.use_acgan:
-            object_class = self.mapping[label_path.split('/')[-3]]
+            object_class = int(label_path.split('/')[-2])
             object_tensor = torch.FloatTensor(1).fill_(object_class)
             object_tensor = object_tensor.expand_as(label_tensor)
 
@@ -103,6 +108,14 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
+
+        # scene category
+        if self.opt.use_scene:
+            scene_path = self.scene_paths[index]
+            scene_class = self.scene_mapping[scene_path]
+            scene_tensor = torch.FloatTensor(1).fill_(scene_class)
+            scene_tensor = scene_tensor.expand_as(label_tensor)
+            
 
         # material
         if self.opt.use_material:
@@ -208,6 +221,8 @@ class Pix2pixDataset(BaseDataset):
             input_dict['object_class'] = object_class
         if self.opt.no_background:
             input_dict['image'] = fg_tensor
+        if self.opt.use_scene:
+            input_dict['scene'] = scene_tensor
 
         # Give subclasses a chance to modify the final output
         self.postprocess(input_dict)

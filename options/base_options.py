@@ -176,7 +176,8 @@ class BaseOptions():
             (opt.material_nc if opt.use_material else 0) + \
             (1 if opt.use_illumination else 0) + \
             (3 if opt.add_hint else 0) + \
-            (opt.acgan_nc if opt.use_acgan else 0)
+            (1 if opt.use_acgan else 0) + \
+            (1 if opt.use_scene else 0)
 
         # set gpu ids
         str_ids = opt.gpu_ids.split(',')

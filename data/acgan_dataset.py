@@ -20,25 +20,28 @@ class ACGanDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
-        parser.add_argument('--mapping_path', type=str, help='mapping dictionary for object categories')
+#        parser.add_argument('--mapping_path', type=str, help='mapping dictionary for object categories')
         parser.set_defaults(use_acgan=True)
+        parser.add_argument('--use_scene', type=str, default=True, help='use scene category as an input')
         return parser
 
     def get_paths(self, opt):
+        assert opt.use_scene
         with open(opt.train_list,'r') as f:
-            training_list = f.read().split('\n')
-        if training_list[-1]=='':
-            training_list = training_list[:-1]
+            training_list = f.read().split('\n')[:-1]
+        scene_paths = []
         image_paths = []
         label_paths = []
         for i,p in enumerate(training_list):
-            if p.endswith('.jpg'):
+            if i % 3 == 0:
+                scene_paths.append(p)
+            elif i % 3 == 1:
                 image_paths.append(p)
-            elif p.endswith('.png'):
+            elif i % 3 == 2:
                 label_paths.append(p)
 
         instance_paths = [] # don't use instance map for ade20k
-        return label_paths, image_paths, instance_paths
+        return label_paths, image_paths, scene_paths, instance_paths
 
     ## In ADE20k, 'unknown' label is of value 0.
     ## Change the 'unknown' label to 255 to match other datasets.
