@@ -144,6 +144,8 @@ class Pix2PixModel(torch.nn.Module):
             data['material'] = data['material'].long()
         if self.opt.use_acgan:
             data['object'] = data['object'].long()
+        if self.opt.use_scene:
+            data['scene'] = data['scene'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -161,6 +163,8 @@ class Pix2PixModel(torch.nn.Module):
                 data['bg'] = data['bg'].cuda()
             if self.opt.use_acgan:
                 data['object'] = data['object'].cuda()
+            if self.opt.use_scene:
+                data['scene'] = data['scene'].cuda()
 
         # create one-hot label map
         label_map = data['label']
@@ -192,6 +196,13 @@ class Pix2PixModel(torch.nn.Module):
             input_object = self.FloatTensor(bs, self.opt.acgan_nc, h, w).zero_()
             input_object_map = input_object.scatter_(1, object_map, 1.0)
             input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
+
+        # create one-hot scene label
+        if self.opt.use_scene:
+            scene_map = data['scene']
+            input_scene = self.FloatTensor(bs, self.opt.scene_nc, h, w).zero_()
+            input_scene_map = input_scene.scatter_(1, scene_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_scene_map), dim=1)
 
         if self.opt.use_illumination:
             input_semantics = torch.cat((input_semantics, data['illumination']), dim=1)
