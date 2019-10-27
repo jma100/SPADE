@@ -82,7 +82,7 @@ class Pix2PixModel(torch.nn.Module):
             return d_loss
         elif mode == 'encode_only':
             z, mu, logvar = self.encode_z(real_image)
-            return z, mu, logvar
+            return mu, logvar
         elif mode == 'inference':
             with torch.no_grad():
                 fake_image, _ = self.generate_fake(input_semantics, real_image)
