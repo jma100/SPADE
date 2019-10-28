@@ -44,7 +44,7 @@ class Pix2PixModel(torch.nn.Module):
     def forward(self, data, mode):
         if self.opt.real_background and self.opt.use_acgan:
             input_semantics, real_image, fg, bg, object_class = self.preprocess_input(data)
-        elif self.opt.no_background and self.opt.use_acgan:
+        elif self.opt.use_acgan:
             input_semantics, real_image, object_class = self.preprocess_input(data)
         elif self.opt.real_background:
             input_semantics, real_image, fg, bg = self.preprocess_input(data)
@@ -55,7 +55,7 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background and self.opt.use_acgan:
                 g_loss, generated = self.compute_generator_loss(
                     input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
-            elif self.opt.no_background and self.opt.use_acgan:
+            elif self.opt.use_acgan:
                 g_loss, generated = self.compute_generator_loss(
                     input_semantics, real_image, object_class=object_class)
             elif self.opt.real_background:
@@ -69,7 +69,7 @@ class Pix2PixModel(torch.nn.Module):
             if self.opt.real_background and self.opt.use_acgan:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, fg=fg, bg=bg, object_class=object_class)
-            elif self.opt.no_background and self.opt.use_acgan:
+            elif self.opt.use_acgan:
                 d_loss = self.compute_discriminator_loss(
                     input_semantics, real_image, object_class=object_class)
 
@@ -213,7 +213,7 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.real_background and self.opt.use_acgan:
             return input_semantics, data['image'], data['fg'], data['bg'], data['object_class']
 
-        if self.opt.no_background and self.opt.use_acgan:
+        if self.opt.use_acgan:
             return input_semantics, data['image'], data['object_class']
 
         if self.opt.real_background:
