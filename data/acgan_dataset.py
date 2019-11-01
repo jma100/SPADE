@@ -20,7 +20,9 @@ class ACGanDataset(Pix2pixDataset):
         parser.set_defaults(cache_filelist_write=False)
         parser.set_defaults(no_instance=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
+        parser.add_argument('--depth_dir', type=str, help='folder path to cropped object depth maps')
         parser.add_argument('--use_scene', action='store_true', help='input scene category or not')
+        parser.add_argument('--use_acgan_loss', action='store_true', help='add acgan loss or not')
         parser.set_defaults(use_acgan=True)
         parser.set_defaults(use_scene=True)
         parser.set_defaults(acgan_nc=88)
@@ -35,7 +37,9 @@ class ACGanDataset(Pix2pixDataset):
             training_list = training_list[:-1]
         scene_paths = []
         image_paths = []
-        label_paths = []
+        label_paths = []  # <ROOT>/training/<CLASS ID>/<FILENAME WITH INSTANCE ID END IN .PNG>
+        if opt.use_depth:
+            depth_paths = [] # <ROOT>/depth/<CLASS ID>/<FILENAME WITH INSTANCE ID END IN .PNG>
         for i,p in enumerate(training_list):
             if i % 3 == 0:
                 scene_paths.append(p)
@@ -43,12 +47,19 @@ class ACGanDataset(Pix2pixDataset):
                 image_paths.append(p)
             elif i % 3 == 2:
                 label_paths.append(p)
+                if opt.use_depth:
+                    root, suffix = p.split('/training/')
+                    depth_path = os.path.join(root, 'depth', suffix)
+                    depth_paths.append(depth_path)
 
         instance_paths = [] # don't use instance map for ade20k
+        paths_dict = {'label_paths': label_paths, 'image_paths': image_paths, 'instance_paths': instance_paths}
         if opt.use_scene:
-            return label_paths, image_paths, instance_paths, scene_paths
-        else:
-            return label_paths, image_paths, instance_paths
+            paths_dict['scene_paths': scene_paths]
+        if opt.use_depth:
+            paths_dict['depth_paths': depth_paths]
+
+        return paths_dict
 
 
     ## In ADE20k, 'unknown' label is of value 0.

@@ -21,14 +21,16 @@ class Pix2pixDataset(BaseDataset):
 
     def initialize(self, opt):
         self.opt = opt
-        if self.opt.use_acgan:
+        if opt.use_acgan:
             self.mapping = {8: 0, 9: 1, 11: 2, 15: 3, 16: 4, 18: 5, 19: 6, 20: 7, 23: 8, 24: 9, 25: 10, 28: 11, 29: 12, 31: 13, 32: 14, 34: 15, 36: 16, 37: 17, 38: 18, 39: 19, 40: 20, 42: 21, 43: 22, 44: 23, 45: 24, 46: 25, 48: 26, 50: 27, 51: 28, 54: 29, 56: 30, 57: 31, 58: 32, 59: 33, 60: 34, 63: 35, 64: 36, 65: 37, 66: 38, 67: 39, 68: 40, 70: 41, 71: 42, 72: 43, 74: 44, 75: 45, 76: 46, 82: 47, 83: 48, 86: 49, 87: 50, 90: 51, 93: 52, 96: 53, 98: 54, 99: 55, 100: 56, 101: 57, 107: 58, 108: 59, 109: 60, 111: 61, 113: 62, 116: 63, 118: 64, 119: 65, 120: 66, 121: 67, 122: 68, 125: 69, 126: 70, 130: 71, 132: 72, 133: 73, 134: 74, 135: 75, 136: 76, 138: 77, 139: 78, 140: 79, 143: 80, 144: 81, 145: 82, 146: 83, 147: 84, 148: 85, 149: 86, 150: 87}
-        if self.opt.use_acgan and self.opt.use_scene:
-            label_paths, image_paths, instance_paths, scene_paths = self.get_paths(opt)
-        elif self.opt_use_acgan:
-            label_paths, image_paths, instance_paths = self.get_paths(opt)
-        else:
-            label_paths, image_paths, instance_paths, depth_paths, material_paths, illumination_paths = self.get_paths(opt)
+        paths_dict = self.get_paths(opt)
+        label_paths = paths_dict['label_paths']
+        image_paths = paths_dict['image_paths']
+        instance_paths = paths_dict['instance_paths']
+        if opt.use_scene:
+            scene_paths = paths_dict['scene_paths']
+        if opt.use_depth:
+            depth_paths = paths_dict['depth_paths']
 
 #        util.natural_sort(label_paths)
 #        util.natural_sort(image_paths)
@@ -54,7 +56,7 @@ class Pix2pixDataset(BaseDataset):
             scene_paths = scene_paths[:opt.max_dataset_size]
             self.scene_paths = scene_paths
         if opt.use_depth:
-            util.natural_sort(depth_paths)
+            #util.natural_sort(depth_paths)
             depth_paths = depth_paths[:opt.max_dataset_size]
             self.depth_paths = depth_paths
 
@@ -128,26 +130,22 @@ class Pix2pixDataset(BaseDataset):
         if self.opt.use_depth:
             depth_path = self.depth_paths[index]
             depth = Image.open(depth_path)
-            im_mode = depth.mode
-            if self.opt.mask_sky:
-#            if self.opt.dataset_mode == 'ade20k':
-                # set sky depth to min
+            segm_data = np.array(label)
+            if 3 in np.unique(segm_data): # 3 is the label for sky
+                # Set sky depth value to minimum depth value in non-sky area
+                im_mode = depth.mode
                 depth_data = np.array(depth)
-                data_type = depth_data.dtype
-                segm_data = np.array(label).astype(data_type)
-                mask = 1-(segm_data==3)
-                depth_data = depth_data * mask
-                min_val = np.partition(np.unique(depth_data), 2)[1]
-                depth_data[depth_data == 0] = min_val
-                depth = Image.fromarray(depth_data.astype(data_type), mode=im_mode)
-#            if depth.mode=='I':
-#                data = np.array(depth).astype(float)/10
-#                data = data.astype(np.uint8)
-#                depth = Image.fromarray(data).convert('L')
+                # first set sky depth to max to find out the minimum of non-sky area
+                sky_set_to_max = depth_data
+                sky_set_to_max[segm_data == 3] = 65535
+                min_val = np.min(sky_set_to_max)
+                # set sky depth to the minimum
+                depth_processed = depth_data
+                depth_processed[segm_data == 3] = min_val
+                depth = Image.fromarray(depth_processed, mode=im_mode)
+            
             depth_tensor = transform_label(depth).float() * 255.0
-            if self.opt.dataset_mode == 'interiornet':
-                depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
-            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/(torch.max(depth_tensor)-torch.min(depth_tensor))-0.5) *2.0
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
