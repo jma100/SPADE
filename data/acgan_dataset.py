@@ -39,7 +39,7 @@ class ACGanDataset(Pix2pixDataset):
         image_paths = []
         label_paths = []  # <ROOT>/training/<CLASS ID>/<FILENAME WITH INSTANCE ID END IN .PNG>
         if opt.use_depth:
-            depth_paths = [] # <ROOT>/depth/<CLASS ID>/<FILENAME WITH INSTANCE ID END IN .PNG>
+            depth_paths = [] # <ROOT>/depth/<CLASS ID>/<FILENAME WITH INSTANCE ID END IN _DEPTH.PNG>
         for i,p in enumerate(training_list):
             if i % 3 == 0:
                 scene_paths.append(p)
@@ -49,15 +49,15 @@ class ACGanDataset(Pix2pixDataset):
                 label_paths.append(p)
                 if opt.use_depth:
                     root, suffix = p.split('/training/')
-                    depth_path = os.path.join(root, 'depth', suffix)
+                    depth_path = os.path.join(root, 'depth', suffix[:-4]+'_depth.png')
                     depth_paths.append(depth_path)
 
         instance_paths = [] # don't use instance map for ade20k
         paths_dict = {'label_paths': label_paths, 'image_paths': image_paths, 'instance_paths': instance_paths}
         if opt.use_scene:
-            paths_dict['scene_paths': scene_paths]
+            paths_dict['scene_paths'] = scene_paths
         if opt.use_depth:
-            paths_dict['depth_paths': depth_paths]
+            paths_dict['depth_paths'] = depth_paths
 
         return paths_dict
 
