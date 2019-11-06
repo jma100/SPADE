@@ -87,7 +87,8 @@ class MergeTrainer():
             global_features = global_features.detach()
             global_features.requires_grad_()
             self.global_features = global_features
-            self.global_z = global_z.detach()
+            if self.opt.use_stuff_vae:
+                self.global_z = global_z.detach()
         else:
             self.optimizer_G_global.zero_grad()
             global_g_losses, global_generated = self.merge_model.module.net_global(data, mode='generator')

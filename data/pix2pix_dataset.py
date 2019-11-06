@@ -50,6 +50,7 @@ class Pix2pixDataset(BaseDataset):
         self.instance_paths = instance_paths
 
         if opt.use_depth:
+            depth_paths = paths['depth']
 #            util.natural_sort(depth_paths)
             depth_paths = depth_paths[:opt.max_dataset_size]
             self.depth_paths = depth_paths
@@ -107,6 +108,27 @@ class Pix2pixDataset(BaseDataset):
         image = image.convert('RGB')
         assert label.size == image.size
 
+        # Depth
+        if self.opt.use_depth:
+            depth_path = self.depth_paths[index]
+            depth = Image.open(depth_path)
+            segm_data = np.array(label)
+            if 3 in np.unique(segm_data): # 3 is the label for sky
+                # Set sky depth value to minimum depth value in non-sky area
+                im_mode = depth.mode
+                depth_data = np.array(depth)
+                # first set sky depth to max to find out the minimum of non-sky area
+                sky_set_to_max = depth_data
+                sky_set_to_max[segm_data == 3] = 65535
+                min_val = np.min(sky_set_to_max)
+                # set sky depth to the minimum
+                depth_processed = depth_data
+                depth_processed[segm_data == 3] = min_val
+                depth = Image.fromarray(depth_processed, mode=im_mode)
+
+            depth_data = np.array(depth)            
+            depth_tensor = transform_label(depth).float() * 255.0
+            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/(torch.max(depth_tensor)-torch.min(depth_tensor))-0.5) *2.0
 
         # objects
         if self.opt.dataset_mode == 'ade20kglobal' and self.opt.use_instance_crop:
@@ -165,10 +187,15 @@ class Pix2pixDataset(BaseDataset):
                         up += height
                         down += height
                         instance_masked_new = np.pad(instance_masked, ((height, height), (0,0)), 'constant')
+                        if self.opt.use_depth:
+                            depth_data_pad = np.pad(depth_data, ((height, height), (0,0)), 'reflect')
+                            depth_new = Image.fromarray(depth_data_pad)
                         h_padded = True
                     else:
                         img_new = image
                         instance_masked_new = instance_masked
+                        if self.opt.use_depth:
+                            depth_new = depth
 	
                 elif h > w:
                     # Make square
@@ -182,19 +209,28 @@ class Pix2pixDataset(BaseDataset):
                         left += width
                         right += width
                         instance_masked_new = np.pad(instance_masked, ((0,0), (width, width)), 'constant')
+                        if self.opt.use_depth:
+                            depth_data_pad = np.pad(depth_data, ((0, 0), (width, width)), 'reflect')
+                            depth_new = Image.fromarray(depth_data_pad)
                         w_padded = True
                     else:
                         img_new = image
                         instance_masked_new = instance_masked
+                        if self.opt.use_depth:
+                            depth_new = depth
                 else:
                     img_new = image
                     instance_masked_new = instance_masked
+                    if self.opt.use_depth:
+                        depth_new = depth
 
                 assert down-up == right-left
                 cropped = img_new.crop((left, up, right, down))
                 mask_out = (instance_masked_new == instance_id).astype(int)
                 cropped_mask = mask_out[up:down, left:right]
                 cropped_label = Image.fromarray(cropped_mask.astype('uint8'))
+                if self.opt.use_depth:
+                    cropped_depth = depth_new.crop((left, up, right, down))
                 obj_params = get_params(self.opt, (right-left, down-up), use_object=True, use_flip=flip)
                 transform_obj_image = get_transform(self.opt, obj_params, use_object=True)
                 transform_obj_label = get_transform(self.opt, obj_params, method=Image.NEAREST, normalize=False, use_object=True)
@@ -224,6 +260,9 @@ class Pix2pixDataset(BaseDataset):
                     data_instance['bbox'] = [int(new_left), int(new_up), int(new_right), int(new_down), w_padded, h_padded, width, height]
                 data_instance['image'] = transform_obj_image(cropped)
                 data_instance['label'] = transform_obj_label(cropped_label) * 255.0
+                if self.opt.use_depth:
+                    depth_tensor_tmp = transform_obj_label(cropped_depth).float() * 255.0
+                    data_instance['depth'] = ((depth_tensor_tmp-torch.min(depth_tensor_tmp))/(torch.max(depth_tensor_tmp)-torch.min(depth_tensor_tmp))-0.5) *2.0
                 if self.opt.use_acgan:
                     object_class = self.mapping[obj_id]
                     object_tensor = torch.FloatTensor(1).fill_(object_class)
@@ -251,17 +290,7 @@ class Pix2pixDataset(BaseDataset):
                 all_objects[chosen_object]['object_name'] = chosen_object
                 input_dict['object_%03d' % i] = all_objects[chosen_object]
 
-        # depth (processing)
-        if self.opt.use_depth:
-            depth_path = self.depth_paths[index]
-            depth = Image.open(depth_path)
-#            if depth.mode=='I':
-#                data = np.array(depth).astype(float)/10
-#                data = data.astype(np.uint8)
-#                depth = Image.fromarray(data).convert('L')
-            depth_tensor = transform_label(depth).float()
-            depth_tensor[depth_tensor == 0] = torch.max(depth_tensor)
-            depth_tensor = ((depth_tensor-torch.min(depth_tensor))/torch.max(depth_tensor)-0.5) *2.0
+
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)

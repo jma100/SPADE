@@ -19,6 +19,10 @@ dataloader = data.create_dataloader(opt)
 
 #model = Pix2PixModel(opt)
 model = MergeModel(opt)
+for name, param in model.named_parameters():
+    if name == 'netA.conv_merge.weight':
+        weights = param
+import pdb; pdb.set_trace()
 model.eval()
 
 visualizer = Visualizer(opt)

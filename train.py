@@ -67,8 +67,9 @@ for epoch in iter_counter.training_epochs():
             merge_trainer.run_global_generator_one_step(data_i['global'])
             data_i['global']['generated'] = merge_trainer.global_generated
             data_i['global']['features'] = merge_trainer.global_features
-            data_i['global']['z'] = merge_trainer.global_z
-            z = torch.cat([z, data_i['global']['z']], 1)
+            if opt.use_stuff_vae:
+                data_i['global']['z'] = merge_trainer.global_z
+                z = torch.cat([z, data_i['global']['z']], 1)
             data_i['z'] = z
 
         # train global discriminator

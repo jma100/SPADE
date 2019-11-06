@@ -5,7 +5,7 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 
 from data.pix2pix_dataset import Pix2pixDataset
 from data.image_folder import make_dataset
-
+import os
 
 class ADE20KGlobalDataset(Pix2pixDataset):
 
@@ -27,7 +27,7 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.set_defaults(no_instance=True)
         parser.set_defaults(nThreads=16)
         parser.set_defaults(margin=16)
-        parser.set_defaults(use_vae=True)
+#        parser.set_defaults(use_vae=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
         parser.add_argument('--obj_load_size', type=int, default=128, help='load size for cropped objects')
         parser.add_argument('--obj_crop_size', type=int, default=128, help='crop size for loaded objects')
@@ -42,6 +42,10 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.add_argument('--instance_conversion', type=str, help='path to 150 class to 100 class conversion')
         parser.add_argument('--use_object_z', action='store_true', help='set to True when loading an object generator trained with stylegan')
         parser.add_argument('--use_stuff_z', action='store_true', help='set to True when loading an stuff generator trained with stylegan')
+        parser.add_argument('--use_stuff_vae', action='store_true', help='set to True when loading an stuff generator trained with vae')
+        parser.add_argument('--use_object_vae', action='store_true', help='set to True when loading an object generator trained with vae')
+        parser.add_argument('--no_merge_layer', action='store_true', help='do not use a merge layer, use copy pasting')
+        parser.add_argument('--depth_dir', type=str, help='depth folder path')
         
 
         parser.set_defaults(use_acgan=True)
@@ -56,14 +60,20 @@ class ADE20KGlobalDataset(Pix2pixDataset):
             training_list = f.read().split('\n')[:-1]
         image_paths = []
         label_paths = []
+        if opt.use_depth:
+            depth_paths = []
         for i,p in enumerate(training_list):
             if 'semantic' in p or 'png' in p:
                 label_paths.append(p)
+                if opt.use_depth:
+                    depth_paths.append(os.path.join(opt.depth_dir, p.split('/')[-1]))
             else:
                 image_paths.append(p)
 
         instance_paths = [] # don't use instance map for ade20k
         paths = {'label': label_paths, 'image': image_paths, 'instance': instance_paths}
+        if opt.use_depth:
+            paths['depth'] = depth_paths
         return paths
 
     # In ADE20k, 'unknown' label is of value 0.

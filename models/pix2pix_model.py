@@ -31,7 +31,7 @@ class Pix2PixModel(torch.nn.Module):
             self.criterionFeat = torch.nn.L1Loss()
             if not opt.no_vgg_loss:
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
-            if opt.use_vae:
+            if (opt.use_object_vae and opt.is_object) or (opt.use_stuff_vae and not opt.is_object):
                 self.KLDLoss = networks.KLDLoss()
             if opt.use_acgan_loss:
                 self.criterionACGAN = networks.ACLoss(
@@ -92,13 +92,13 @@ class Pix2PixModel(torch.nn.Module):
     def initialize_networks(self, opt):
         netG = networks.define_G(opt)
         netD = networks.define_D(opt) if opt.isTrain and not opt.load_pretrain else None
-        netE = networks.define_E(opt) if opt.use_vae else None
+        netE = networks.define_E(opt) if (opt.use_object_vae and opt.is_object) or (opt.use_stuff_vae and not opt.is_object) else None
 
         if opt.load_pretrain or not opt.isTrain or opt.continue_train:
             netG = util.load_network(netG, 'G', opt.which_epoch, opt)
             if opt.isTrain and not opt.load_pretrain:
                 netD = util.load_network(netD, 'D', opt.which_epoch, opt)
-            if opt.use_vae:
+            if (opt.use_object_vae and opt.is_object) or (opt.use_stuff_vae and not opt.is_object):
                 netE = util.load_network(netE, 'E', opt.which_epoch, opt)
 
         return netG, netD, netE
@@ -109,9 +109,9 @@ class Pix2PixModel(torch.nn.Module):
 
         input_semantics, real_image = input_dict['label'], input_dict['image']
         fake_image, fake_features, KLD_loss = self.generate_fake(
-            input_dict, compute_kld_loss=self.opt.use_vae)
+            input_dict, compute_kld_loss=(self.opt.use_object_vae and self.opt.is_object) or (self.opt.use_stuff_vae and not self.opt.is_object))
 
-        if self.opt.use_vae:
+        if (self.opt.use_object_vae and self.opt.is_object) or (self.opt.use_stuff_vae and not self.opt.is_object):
             G_losses['KLD'] = KLD_loss
 
         if self.opt.use_acgan_loss:
@@ -182,7 +182,7 @@ class Pix2PixModel(torch.nn.Module):
         z = None
         KLD_loss = None
         real_image, input_semantics = input_dict['image'], input_dict['label']
-        if self.opt.use_vae:
+        if (self.opt.use_object_vae and self.opt.is_object) or (self.opt.use_stuff_vae and not self.opt.is_object):
             if self.opt.real_background:
                 encode_input = input_dict['fg']
             else:

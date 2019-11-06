@@ -36,7 +36,7 @@ class SPADEGenerator(BaseNetwork):
 
         self.sw, self.sh = self.compute_latent_vector_size(opt)
 
-        if opt.use_vae:
+        if (opt.use_object_vae and opt.is_object) or (opt.use_stuff_vae and not opt.is_object):
             # In case of VAE, we will sample from random z vector
             self.fc = nn.Linear(opt.z_dim, 16 * nf * self.sw * self.sh)
         elif opt.use_random:
@@ -90,7 +90,7 @@ class SPADEGenerator(BaseNetwork):
 
     def forward(self, input, z=None):
         seg = input
-        if self.opt.use_vae:
+        if (self.opt.use_object_vae and self.opt.is_object) or (self.opt.use_stuff_vae and not self.opt.is_object):
             # we sample z from unit normal and reshape the tensor
             if z is None:
                 z = torch.randn(input.size(0), self.opt.z_dim,

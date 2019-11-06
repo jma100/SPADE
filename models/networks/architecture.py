@@ -22,16 +22,17 @@ class SPADEResnetBlock(nn.Module):
     def __init__(self, fin, fout, opt, assemble=False):
         super().__init__()
         # Attributes
+        self.opt = opt
         self.learned_shortcut = (fin != fout)
         fmiddle = min(fin, fout)
         #input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
         input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan and opt.is_object else 0) + (opt.scene_nc if opt.use_scene and opt.is_object else 0)
 
-        if opt.use_style and assemble:
+        if opt.use_style and assemble and opt.use_stuff_vae and opt.use_object_vae:
             input_nc += opt.max_object_per_image + 1
-        elif opt.use_object_z and opt.is_object:
+        elif (opt.use_object_z and opt.is_object) or (opt.use_style and assemble and opt.use_object_vae):
             input_nc += opt.max_object_per_image
-        elif opt.use_stuff_z and not opt.is_object:
+        elif (opt.use_stuff_z and not opt.is_object) or (opt.use_style and assemble and opt.use_stuff_vae):
             input_nc += 1
 
         # create conv layers
@@ -54,9 +55,11 @@ class SPADEResnetBlock(nn.Module):
         self.assemble = assemble
         if self.learned_shortcut:
             self.norm_s = SPADE(spade_config_str, fin, input_nc)
-        if assemble:
+        if assemble and opt.use_stuff_vae and opt.use_object_vae:
             self.fc = nn.Linear(opt.z_dim*2, opt.w_dim*2)
-        elif opt.use_object_z or opt.use_stuff_z:
+        elif assemble and (opt.use_stuff_vae or opt.use_object_vae):
+            self.fc = nn.Linear(opt.z_dim, opt.w_dim)
+        elif (opt.use_object_z and opt.is_object) or (opt.use_stuff_z and not opt.is_object and not assemble):
             self.fc = nn.Linear(opt.z_dim, opt.w_dim)
         self.w_dim = opt.w_dim
 
@@ -65,7 +68,7 @@ class SPADEResnetBlock(nn.Module):
     def forward(self, x, seg, z=None):
         if z is not None:
             w = self.fc(z)
-            if self.assemble:
+            if self.assemble and self.opt.use_stuff_vae and self.opt.use_object_vae:
                 w = w.view(-1, 2, int(self.w_dim**0.5), int(self.w_dim**0.5))
             else:
                 w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))

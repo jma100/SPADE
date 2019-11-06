@@ -15,7 +15,8 @@ class Assembler(BaseNetwork):
         self.enhance_1 = SPADEResnetBlock(1 * nf, 1 * nf, opt, assemble=True)
         self.enhance_2 = SPADEResnetBlock(1 * nf, 1 * nf, opt, assemble=True)
         self.conv_img = nn.Conv2d(final_nc, self.opt.output_nc, 3, padding=1)
-        self.conv_merge = nn.Conv2d(2 * nf, 1 * nf, 1)
+        if not self.opt.no_merge_layer:
+            self.conv_merge = nn.Conv2d(2 * nf, 1 * nf, 1)
 
     def forward(self, data):
         z = data['z']
@@ -60,8 +61,9 @@ class Assembler(BaseNetwork):
                     instance_resized_mask = instance_resized_mask[:, :, obj_c_up:obj_c_down, :]
                 assert not (w_padded and h_padded)
                 global_gen[i:i+1, :, c_up:c_down, c_left:c_right] = global_gen[i:i+1, :, c_up:c_down, c_left:c_right].clone() * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
-        global_gen = torch.cat((data['global']['features'], global_gen), dim=1)
-        global_gen = self.conv_merge(global_gen)
+        if not self.opt.no_merge_layer:
+            global_gen = torch.cat((data['global']['features'], global_gen), dim=1)
+            global_gen = self.conv_merge(global_gen)
 #        global_gen = self.conv_merge(F.leaky_relu(global_gen, 2e-1, inplace=True))
 #        global_gen = F.leaky_relu(global_gen, 2e-1, inplace=True)
         global_gen = self.enhance_1(global_gen, data['global']['label'], z)

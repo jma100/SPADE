@@ -209,8 +209,9 @@ class MergeModel(torch.nn.Module):
             A_params = list(self.netA.parameters())+ \
                     list(self.net_object.netG.parameters()) + \
                     list(self.net_global.netG.parameters())
-            if opt.use_vae:
+            if opt.use_object_vae:
                 A_params += list(self.net_object.netE.parameters())
+            if opt.use_stuff_vae:
                 A_params += list(self.net_global.netE.parameters())
         if opt.isTrain:
             D_params = list(self.netD.parameters())

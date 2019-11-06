@@ -124,6 +124,8 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += 1
         if opt.use_acgan and opt.is_object:
             input_nc += opt.acgan_nc
+        if opt.use_scene and opt.is_object:
+            input_nc += opt.scene_nc
         return input_nc
 
     def forward(self, input):
