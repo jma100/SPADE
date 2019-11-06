@@ -71,7 +71,7 @@ class BaseOptions():
         parser.add_argument('--use_material', action='store_true', help='enable training with material mask')
         parser.add_argument('--material_nc', type=int, default=26, help='# of material classes, from unified parsing')
         parser.add_argument('--use_illumination', action='store_true', help='enable training with illumination map')
-        parser.add_argument('--use_style', action='store_true', help='input style vector into SPADE module')
+        parser.add_argument('--use_style', action='store_true', help='input style vector into enhancement modules')
         parser.add_argument('--mask_sky', action='store_true', help='set sky to minimum value')
         parser.add_argument('--add_hint', action='store_true', help='input a 10x10 center pixel')
         parser.add_argument('--random_hint', action='store_true', help='put patch at random location')
@@ -177,7 +177,6 @@ class BaseOptions():
             (0 if opt.no_instance else 1) + \
             (1 if opt.use_depth else 0)  + \
             (opt.material_nc if opt.use_material else 0) + \
-            (1 if opt.use_style else 0) + \
             (1 if opt.use_illumination else 0) + \
             (3 if opt.add_hint else 0) + \
             (opt.acgan_nc if opt.use_acgan else 0)

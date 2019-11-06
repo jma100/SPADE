@@ -52,13 +52,13 @@ class MultiscaleDiscriminator(BaseNetwork):
     # The final result is of size opt.num_D x opt.n_layers_D
     def forward(self, input):
         result = []
-        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
+        if self.opt.use_acgan_loss or (self.opt.is_object and self.opt.acgan_nc > 1):
             class_result = []
         get_intermediate_features = not self.opt.no_ganFeat_loss
         for name, D in self.named_children():
             out = D(input)
 
-            if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
+            if self.opt.use_acgan_loss or (self.opt.is_object and self.opt.acgan_nc > 1):
                 out, pred_class = D(input)
                 class_result.append(pred_class)
             else:
@@ -69,7 +69,7 @@ class MultiscaleDiscriminator(BaseNetwork):
             result.append(out)
             input = self.downsample(input)
 
-        if self.opt.use_acgan or (self.opt.is_object and self.opt.acgan_nc > 1):
+        if self.opt.use_acgan_loss or (self.opt.is_object and self.opt.acgan_nc > 1):
             return result, class_result
 
         return result
@@ -111,7 +111,7 @@ class NLayerDiscriminator(BaseNetwork):
         for n in range(len(sequence)):
             self.add_module('model' + str(n), nn.Sequential(*sequence[n]))
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             self.aux_layer = nn.Conv2d(nf, opt.acgan_nc, kernel_size=kw, stride=1, padding=padw)
 
     def compute_D_input_nc(self, opt):
@@ -122,7 +122,7 @@ class NLayerDiscriminator(BaseNetwork):
             input_nc += 1
         if opt.use_depth:
             input_nc += 1
-        if opt.use_acgan or opt.is_object:
+        if opt.use_acgan and opt.is_object:
             input_nc += opt.acgan_nc
         return input_nc
 
@@ -137,14 +137,14 @@ class NLayerDiscriminator(BaseNetwork):
             results.append(intermediate_output)
             counter += 1
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             pred_object = nn.Softmax(dim=1)(self.aux_layer(results[-2]))
             bs, c, h, w = pred_object.size()
             pred_object = pred_object.view(bs, c, h*w)
 
         get_intermediate_features = not self.opt.no_ganFeat_loss
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             if get_intermediate_features:
                 return results[1:], pred_object
             else:

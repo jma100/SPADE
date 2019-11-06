@@ -25,9 +25,13 @@ class SPADEGenerator(BaseNetwork):
     def __init__(self, opt):
         super().__init__()
         self.opt = opt
-        print('########################3')
-        print(opt.is_object)
-        input_nc = (2 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan and opt.is_object else 0) + (opt.scene_nc if opt.use_scene and opt.is_object else 0)
+
+        if opt.use_object_z and opt.is_object:
+            input_nc += opt.max_object_per_image
+        elif opt.use_stuff_z and not opt.is_object:
+            input_nc += 1
+        
         nf = opt.ngf
 
         self.sw, self.sh = self.compute_latent_vector_size(opt)
@@ -103,29 +107,56 @@ class SPADEGenerator(BaseNetwork):
             x = F.interpolate(seg, size=(self.sh, self.sw))
             x = self.fc(x)
 
-        x = self.head_0(x, seg, z)
+        if (self.opt.use_object_z and self.opt.is_object) or \
+           (self.opt.use_stuff_z and not self.opt.is_object):
+            x = self.head_0(x, seg, z)
 
-        x = self.up(x)
-        x = self.G_middle_0(x, seg, z)
-
-        if self.opt.num_upsampling_layers == 'more' or \
-           self.opt.num_upsampling_layers == 'most':
             x = self.up(x)
+            x = self.G_middle_0(x, seg, z)
 
-        x = self.G_middle_1(x, seg, z)
+            if self.opt.num_upsampling_layers == 'more' or \
+                self.opt.num_upsampling_layers == 'most':
+                x = self.up(x)
 
-        x = self.up(x)
-        x = self.up_0(x, seg, z)
-        x = self.up(x)
-        x = self.up_1(x, seg, z)
-        x = self.up(x)
-        x = self.up_2(x, seg, z)
-        x = self.up(x)
-        x = self.up_3(x, seg, z)
+            x = self.G_middle_1(x, seg, z)
 
-        if self.opt.num_upsampling_layers == 'most':
             x = self.up(x)
-            x = self.up_4(x, seg, z)
+            x = self.up_0(x, seg, z)
+            x = self.up(x)
+            x = self.up_1(x, seg, z)
+            x = self.up(x)
+            x = self.up_2(x, seg, z)
+            x = self.up(x)
+            x = self.up_3(x, seg, z)
+
+            if self.opt.num_upsampling_layers == 'most':
+                x = self.up(x)
+                x = self.up_4(x, seg, z)
+
+        else:
+            x = self.head_0(x, seg)
+
+            x = self.up(x)
+            x = self.G_middle_0(x, seg)
+
+            if self.opt.num_upsampling_layers == 'more' or \
+               self.opt.num_upsampling_layers == 'most':
+                x = self.up(x)
+
+            x = self.G_middle_1(x, seg)
+
+            x = self.up(x)
+            x = self.up_0(x, seg)
+            x = self.up(x)
+            x = self.up_1(x, seg)
+            x = self.up(x)
+            x = self.up_2(x, seg)
+            x = self.up(x)
+            x = self.up_3(x, seg)
+
+            if self.opt.num_upsampling_layers == 'most':
+                x = self.up(x)
+                x = self.up_4(x, seg)
 
         y = self.conv_img(F.leaky_relu(x, 2e-1, inplace=True))
         y = F.tanh(y)

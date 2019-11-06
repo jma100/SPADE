@@ -128,9 +128,10 @@ class MergeModel(torch.nn.Module):
     def preprocess_input(self, data):
         # move to GPU and change data types
         data['label'] = data['label'].long()
-        if self.opt.use_acgan:
+        if self.opt.use_acgan and self.opt.is_object:
             data['object'] = data['object'].long()
-            data['object_class'] = data['object_class'].long()
+        if self.opt.use_scene and self.opt.is_object:
+            data['scene'] = data['scene'].long()
         if self.use_gpu():
             data['label'] = data['label'].cuda()
             data['instance'] = data['instance'].cuda()
@@ -140,23 +141,24 @@ class MergeModel(torch.nn.Module):
             if self.opt.real_background:
                 data['fg'] = data['fg'].cuda()
                 data['bg'] = data['bg'].cuda()
-            if self.opt.use_acgan:
+            if self.opt.use_acgan and self.opt.is_object:
                 data['object'] = data['object'].cuda()
-                data['object_class'] = data['object_class'].cuda()
+            if self.opt.use_scene and self.opt.is_object:
+                data['scene'] = data['scene'].cuda()
             if self.opt.position_encode and self.opt.is_object:
                 data['pos_x'] = data['pos_x'].cuda()
                 data['pos_y'] = data['pos_y'].cuda()
 
 
+        label_map = data['label']
+        bs, _, h, w = label_map.size()
         if self.opt.is_object:
-            input_semantics = data['label'].float()
+            nc = 1+1 if self.opt.contain_dontcare_label else 1
         else:
-            label_map = data['label']
-            bs, _, h, w = label_map.size()
             nc = self.opt.label_nc + 1 if self.opt.contain_dontcare_label \
                 else self.opt.label_nc
-            input_label = self.FloatTensor(bs, nc, h, w).zero_()
-            input_semantics = input_label.scatter_(1, label_map, 1.0)
+        input_label = self.FloatTensor(bs, nc, h, w).zero_()
+        input_semantics = input_label.scatter_(1, label_map, 1.0)
 
         # concatenate instance map if it exists
         if not self.opt.no_instance:
@@ -168,16 +170,23 @@ class MergeModel(torch.nn.Module):
             input_semantics = torch.cat((input_semantics, data['depth']),dim=1)
 
         # create one-hot object label
-        if self.opt.use_acgan:
+        if self.opt.use_acgan and self.opt.is_object:
             object_map = data['object']
             input_object = self.FloatTensor(bs, self.opt.acgan_nc, h, w).zero_()
             input_object_map = input_object.scatter_(1, object_map, 1.0)
             input_semantics = torch.cat((input_semantics, input_object_map), dim=1)
 
+        # create one-hot scene label
+        if self.opt.use_scene and self.opt.is_object:
+            scene_map = data['scene']
+            input_scene = self.FloatTensor(bs, self.opt.scene_nc, h, w).zero_()
+            input_scene_map = input_scene.scatter_(1, scene_map, 1.0)
+            input_semantics = torch.cat((input_semantics, input_scene_map), dim=1)
+
         input_dict = {'label': input_semantics, 'image': data['image']}
         if not self.opt.is_object:
             input_dict['path'] = data['path']
-        if self.opt.use_acgan:
+        if self.opt.use_acgan and self.opt.is_object:
             input_dict['object_class'] = data['object_class']
         if self.opt.real_background:
             input_dict['fg'] = data['fg']
@@ -189,6 +198,8 @@ class MergeModel(torch.nn.Module):
             input_dict['generated'] = data['generated']
         if self.opt.is_object:
             input_dict['bbox'] = data['bbox']
+            input_dict['object_name'] = data['object_name']
+            input_dict['mask'] = data['label'].float()
         return input_dict
 
     def create_optimizers(self, opt):

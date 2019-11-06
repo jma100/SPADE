@@ -28,22 +28,32 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.set_defaults(nThreads=16)
         parser.set_defaults(margin=16)
         parser.set_defaults(use_vae=True)
-        parser.set_defaults(no_acgan_loss=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
-        parser.add_argument('--object_info', type=str, help='object name: object ade id, object min training size')
         parser.add_argument('--obj_load_size', type=int, default=128, help='load size for cropped objects')
         parser.add_argument('--obj_crop_size', type=int, default=128, help='crop size for loaded objects')
         parser.add_argument('--max_object_per_image', type=int, default=1, help='number of objects per image during training')
         parser.add_argument('--is_object', action='store_true', help='indicate if the pix2pix model is object renderer or global renderer')
         parser.add_argument('--pretrain_object', type=str, help='folder of pretrained object model checkpoints')
         parser.add_argument('--pretrain_stuff', type=str, help='folder of pretrained stuff model checkpoints')
+        parser.add_argument('--use_acgan_loss', action='store_true', help='add acgan loss or not')
+        parser.add_argument('--use_scene', action='store_true', help='input scene category or not')
+        parser.add_argument('--use_instance_crop', action='store_true', help='use instance segmentation in cropping or not')
+        parser.add_argument('--instance_dir', type=str, help='path to instance folder for cropping')
+        parser.add_argument('--instance_conversion', type=str, help='path to 150 class to 100 class conversion')
+        parser.add_argument('--use_object_z', action='store_true', help='set to True when loading an object generator trained with stylegan')
+        parser.add_argument('--use_stuff_z', action='store_true', help='set to True when loading an stuff generator trained with stylegan')
+        
+
+        parser.set_defaults(use_acgan=True)
+        parser.set_defaults(use_scene=True)
+        parser.set_defaults(acgan_nc=88)
+        parser.add_argument('--scene_nc', type=int, help='number of scene classes')
+        parser.set_defaults(scene_nc=8)
         return parser
 
     def get_paths(self, opt):
         with open(opt.train_list,'r') as f:
-            training_list = f.read().split('\n')
-        if training_list[-1]=='':
-            training_list = training_list[:-1]
+            training_list = f.read().split('\n')[:-1]
         image_paths = []
         label_paths = []
         for i,p in enumerate(training_list):

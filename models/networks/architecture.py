@@ -24,10 +24,14 @@ class SPADEResnetBlock(nn.Module):
         # Attributes
         self.learned_shortcut = (fin != fout)
         fmiddle = min(fin, fout)
-        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        #input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label and not opt.is_object else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan else 0)
+        input_nc = (1 if opt.is_object else opt.label_nc) + (1 if opt.contain_dontcare_label else 0) + (0 if opt.no_instance else 1) + (1 if opt.use_depth else 0) + (opt.acgan_nc if opt.use_acgan and opt.is_object else 0) + (opt.scene_nc if opt.use_scene and opt.is_object else 0)
+
         if opt.use_style and assemble:
-            input_nc += 2
-        elif opt.use_style:
+            input_nc += opt.max_object_per_image + 1
+        elif opt.use_object_z and opt.is_object:
+            input_nc += opt.max_object_per_image
+        elif opt.use_stuff_z and not opt.is_object:
             input_nc += 1
 
         # create conv layers
@@ -52,32 +56,47 @@ class SPADEResnetBlock(nn.Module):
             self.norm_s = SPADE(spade_config_str, fin, input_nc)
         if assemble:
             self.fc = nn.Linear(opt.z_dim*2, opt.w_dim*2)
-        else:
+        elif opt.use_object_z or opt.use_stuff_z:
             self.fc = nn.Linear(opt.z_dim, opt.w_dim)
         self.w_dim = opt.w_dim
 
     # note the resnet block with SPADE also takes in |seg|,
     # the semantic segmentation map as input
-    def forward(self, x, seg, z):
-        w = self.fc(z)
-        #print('W', w.size(), 'X', x.size())
-        if self.assemble:
-            w = w.view(-1, 2, int(self.w_dim**0.5), int(self.w_dim**0.5))
+    def forward(self, x, seg, z=None):
+        if z is not None:
+            w = self.fc(z)
+            if self.assemble:
+                w = w.view(-1, 2, int(self.w_dim**0.5), int(self.w_dim**0.5))
+            else:
+                w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))
+            x_s = self.shortcut_with_style(x, seg, w)
+
+            dx = self.conv_0(self.actvn(self.norm_0(x, seg, w)))
+            dx = self.conv_1(self.actvn(self.norm_1(dx, seg, w)))
+
+            out = x_s + dx
+
+            return out
         else:
-            w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))
-        #print(w.size())
-        x_s = self.shortcut(x, seg, w)
+            x_s = self.shortcut(x, seg)
 
-        dx = self.conv_0(self.actvn(self.norm_0(x, seg, w)))
-        dx = self.conv_1(self.actvn(self.norm_1(dx, seg, w)))
+            dx = self.conv_0(self.actvn(self.norm_0(x, seg)))
+            dx = self.conv_1(self.actvn(self.norm_1(dx, seg)))
 
-        out = x_s + dx
+            out = x_s + dx
 
-        return out
+            return out
 
-    def shortcut(self, x, seg, w):
+    def shortcut_with_style(self, x, seg, w):
         if self.learned_shortcut:
             x_s = self.conv_s(self.actvn(self.norm_s(x, seg, w)))
+        else:
+            x_s = x
+        return x_s
+
+    def shortcut(self, x, seg):
+        if self.learned_shortcut:
+            x_s = self.conv_s(self.actvn(self.norm_s(x, seg)))
         else:
             x_s = x
         return x_s

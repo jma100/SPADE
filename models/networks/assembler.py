@@ -27,13 +27,39 @@ class Assembler(BaseNetwork):
                 if obj in ['global', 'z', 'generated']:
                     continue
                 instance_data = data[obj]
-                left, up, right, down = [f[i].item() for f in instance_data['bbox']]
-#                print('----------------assembler-------------')
-#                print(left, up, right, down)
-#                print(data['global']['path'][i])
+                left, up, right, down, w_padded, h_padded, w, h = [f[i].item() for f in instance_data['bbox']]
+                size = self.opt.crop_size
                 instance_resized_gen = F.interpolate(instance_data['features'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
-                instance_resized_mask = F.interpolate(instance_data['label'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
-                global_gen[i:i+1, :, up:down, left:right] = global_gen[i:i+1, :, up:down, left:right].clone() * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
+                instance_resized_mask = F.interpolate(instance_data['mask'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
+
+
+                # find left, right, up, down coordinates in the 256 by 256
+                c_left = left
+                c_right = right
+                c_up = up
+                c_down = down
+
+                if w_padded:
+                    # if left coordinate -crop_size out of boundary
+                    new_left = left - self.opt.crop_size
+                    c_left = max(0, new_left)
+                    obj_c_left = c_left-new_left
+                    new_right = right - self.opt.crop_size
+                    c_right = min(new_right, self.opt.crop_size)
+                    obj_c_right = right-left-(new_right-c_right)
+                    instance_resized_gen = instance_resized_gen[:, :, :, obj_c_left:obj_c_right]
+                    instance_resized_mask = instance_resized_mask[:, :, :, obj_c_left:obj_c_right]
+                if h_padded:
+                    new_up = up-self.opt.crop_size
+                    c_up = max(0, new_up)
+                    obj_c_up = c_up-new_up
+                    new_down = down - self.opt.crop_size
+                    c_down = min(new_down, self.opt.crop_size)
+                    obj_c_down = down-up-(new_down-c_down)
+                    instance_resized_gen = instance_resized_gen[:, :, obj_c_up:obj_c_down, :]
+                    instance_resized_mask = instance_resized_mask[:, :, obj_c_up:obj_c_down, :]
+                assert not (w_padded and h_padded)
+                global_gen[i:i+1, :, c_up:c_down, c_left:c_right] = global_gen[i:i+1, :, c_up:c_down, c_left:c_right].clone() * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
         global_gen = torch.cat((data['global']['features'], global_gen), dim=1)
         global_gen = self.conv_merge(global_gen)
 #        global_gen = self.conv_merge(F.leaky_relu(global_gen, 2e-1, inplace=True))

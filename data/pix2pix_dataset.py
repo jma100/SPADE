@@ -1,4 +1,5 @@
 """
+                    iown = min(size, down-size)
 Copyright (C) 2019 NVIDIA Corporation.  All rights reserved.
 Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses/by-nc-sa/4.0/legalcode).
 """
@@ -22,9 +23,11 @@ class Pix2pixDataset(BaseDataset):
     def initialize(self, opt):
         self.opt = opt
         if opt.use_acgan:
-            self.mapping = self.load_mapping(opt.mapping_path)
-        if opt.dataset_mode == 'ade20kglobal':
-            self.object_info = self.load_mapping(opt.object_info)
+            self.mapping = {8: 0, 9: 1, 11: 2, 15: 3, 16: 4, 18: 5, 19: 6, 20: 7, 23: 8, 24: 9, 25: 10, 28: 11, 29: 12, 31: 13, 32: 14, 34: 15, 36: 16, 37: 17, 38: 18, 39: 19, 40: 20, 42: 21, 43: 22, 44: 23, 45: 24, 46: 25, 48: 26, 50: 27, 51: 28, 54: 29, 56: 30, 57: 31, 58: 32, 59: 33, 60: 34, 63: 35, 64: 36, 65: 37, 66: 38, 67: 39, 68: 40, 70: 41, 71: 42, 72: 43, 74: 44, 75: 45, 76: 46, 82: 47, 83: 48, 86: 49, 87: 50, 90: 51, 93: 52, 96: 53, 98: 54, 99: 55, 100: 56, 101: 57, 107: 58, 108: 59, 109: 60, 111: 61, 113: 62, 116: 63, 118: 64, 119: 65, 120: 66, 121: 67, 122: 68, 125: 69, 126: 70, 130: 71, 132: 72, 133: 73, 134: 74, 135: 75, 136: 76, 138: 77, 139: 78, 140: 79, 143: 80, 144: 81, 145: 82, 146: 83, 147: 84, 148: 85, 149: 86, 150: 87}
+            self.yes_classes = [8, 9, 11, 15, 16, 19, 20, 23, 24, 25, 28, 31, 32, 34, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 48, 50, 51, 54, 56, 57, 58, 59, 63, 65, 66, 67, 68, 70, 71, 72, 74, 75, 76, 82, 83, 86, 87, 90, 93, 96, 98, 99, 108, 109, 111, 113, 116, 119, 120, 121, 122, 125, 126, 130, 133, 134, 135, 136, 138, 139, 140, 143, 144, 145, 147, 148, 149, 150]
+        if opt.use_instance_crop:
+            mapping = open(self.opt.instance_conversion, 'r').read().split('\n')[1:-1]
+            self.object_to_instance = {int(f.split()[1]): int(f.split()[0]) for f in mapping}
         paths = self.get_paths(opt)
         label_paths, image_paths, instance_paths = paths['label'], paths['image'], paths['instance']        
 
@@ -51,6 +54,12 @@ class Pix2pixDataset(BaseDataset):
             depth_paths = depth_paths[:opt.max_dataset_size]
             self.depth_paths = depth_paths
 
+        if opt.use_scene:
+            scene_file = '/data/vision/torralba/virtualhome/realvirtualhome/SPADE_old/datasets/ADE150Indoor/sceneCategories.txt'
+            with open(scene_file, 'r') as f:
+                lines = f.read().split('\n')[:-1]
+            self.scene_mapping = {line.split()[0]:line.split()[1] for line in lines}
+            self.scene_name_to_index = {'bathroom':0, 'bedroom':1, 'kitchen':2, 'living_room':3, 'childs_room':4, 'dining_room':5, 'dorm_room':6, 'hotel_room':7}
         size = len(self.label_paths)
         self.dataset_size = size
 
@@ -98,76 +107,149 @@ class Pix2pixDataset(BaseDataset):
         image = image.convert('RGB')
         assert label.size == image.size
 
+
         # objects
-        if self.opt.dataset_mode == 'ade20kglobal':
-            objects_exist = np.unique(label_data)
+        if self.opt.dataset_mode == 'ade20kglobal' and self.opt.use_instance_crop:
+            objects_exist = list(set(np.unique(label_data)).intersection(set(self.yes_classes)))
+            # get scene class
+            if self.opt.use_scene:
+                name = label_path.split('/')[-1][:-4]
+                scene_name = self.scene_mapping[name]
+                scene_class = self.scene_name_to_index[scene_name]
             flip = params['flip']
             margin = self.opt.margin
             all_objects = dict()
-            for obj, (obj_id, min_size) in self.object_info.items():
-                if obj_id in objects_exist:
-                    # find instance map
-                    blobs = label_data == obj_id
-                    instance_data, nlabels = ndimage.label(blobs)
+            height, width = label_data.shape
+            instance_path = os.path.join(self.opt.instance_dir, label_path.split('/')[-1])
+            instance = Image.open(instance_path)
+            instance_data = np.array(instance)
+            instance_rgbs = set( tuple(v) for m2d in instance_data for v in m2d )
+            img_data = np.array(image)
+            all_instances = []
+            for obj_id in objects_exist:
+                # randomly choose instance
+                instance_ids = np.unique([s[1] for s in instance_rgbs if s[0]==self.object_to_instance[obj_id]])
+                for instance_id in instance_ids:
+                    instance_name = '%03d_%03d' % (obj_id, instance_id)
+                    all_instances.append(instance_name)
+            np.random.shuffle(all_instances)
 
-                    height, width = label_data.shape
+            for chosen_object in all_instances:
+                if len(all_objects.keys()) >= self.opt.max_object_per_image:
+                    continue
+                obj_id, instance_id = chosen_object.split('_')
+                obj_id, instance_id = int(obj_id), int(instance_id)
+                mask = (instance_data[:, :, 0] == self.object_to_instance[obj_id]).astype(int)
+                mask_rgb = np.zeros(instance_data.shape)
+                mask_rgb[...,0] = mask
+                mask_rgb[...,1] = mask
+                mask_rgb[...,2] = mask
+                instance_masked = (instance_data * mask_rgb)[..., 1]
+                up, down, left, right = self.bbox(instance_masked, instance_id)
+                w_padded, h_padded = False, False
+                if down-up < 20 or right-left < 20:
+                    continue
+                data_instance = dict()
+                # Add margins
+                up, down, left, right = max(0, up-margin), min(height, down+margin), max(0, left -margin), min(width, right + margin)
+                w, h = right-left, down-up
+                if w > h:
+                    # Make square
+                    center = (down+up)//2
+                    up = center - w//2
+                    down = center + (w-w//2)
+                    assert right-left == down-up
+                    if up < 0 or down > height:
+                        img_data_pad = np.pad(img_data, ((height, height), (0,0), (0,0)), 'reflect')
+                        img_new = Image.fromarray(img_data_pad)
+                        up += height
+                        down += height
+                        instance_masked_new = np.pad(instance_masked, ((height, height), (0,0)), 'constant')
+                        h_padded = True
+                    else:
+                        img_new = image
+                        instance_masked_new = instance_masked
+	
+                elif h > w:
+                    # Make square
+                    center = (left+right)//2
+                    left = center - h//2
+                    right = center + (h-h//2)
+                    assert right-left == down-up
+                    if left < 0 or right > width:
+                        img_data_pad = np.pad(img_data, ((0,0), (width, width), (0,0)), 'reflect')
+                        img_new = Image.fromarray(img_data_pad)
+                        left += width
+                        right += width
+                        instance_masked_new = np.pad(instance_masked, ((0,0), (width, width)), 'constant')
+                        w_padded = True
+                    else:
+                        img_new = image
+                        instance_masked_new = instance_masked
+                else:
+                    img_new = image
+                    instance_masked_new = instance_masked
 
-                    for instance_id in range(1, nlabels+1):
-                        up, down, left, right = self.bbox(instance_data, instance_id)
-                        up, down, left, right = max(0, up-margin), min(height, down+margin), max(0, left -margin), min(width, right + margin)
-                        if down-up < min_size or right-left < min_size:
-                            continue
-                        data_instance = dict()
-                        instance_name = obj + '_%03d' % instance_id
-                        cropped = image.crop((left, up, right, down))
-                        mask_out = (instance_data == instance_id).astype(int)
-                        cropped_mask = mask_out[up:down, left:right]
-                        cropped_label = Image.fromarray(cropped_mask.astype('uint8'))
-                        obj_params = get_params(self.opt, (right-left, down-up), use_object=True, use_flip=flip)
-                        transform_obj_image = get_transform(self.opt, obj_params, use_object=True)
-                        transform_obj_label = get_transform(self.opt, obj_params, method=Image.NEAREST, normalize=False, use_object=True)
-                        new_left = int(float(left)/width*self.opt.crop_size)
-                        new_right = int(float(right)/width*self.opt.crop_size)
-                        new_up = int(float(up)/height*self.opt.crop_size)
-                        new_down = int(float(down)/height*self.opt.crop_size)
-                        if flip:
-                            data_instance['bbox'] = [self.opt.crop_size-new_right, new_up, self.opt.crop_size-new_left, new_down]
-                        else:
-                            data_instance['bbox'] = [new_left, new_up, new_right, new_down]
-                        data_instance['image'] = transform_obj_image(cropped)
-                        data_instance['label'] = transform_obj_label(cropped_label) * 255.0
-                        if self.opt.use_acgan:
-                            object_class = self.mapping[obj]
-                            object_tensor = torch.FloatTensor(1).fill_(object_class)
-                            object_tensor = object_tensor.expand_as(data_instance['label'])
-                            data_instance['object'] = object_tensor
-                            data_instance['object_class'] = object_class
-                        if self.opt.no_background:
-                            data_instance['fg'] = data_instance['image'] * data_instance['label'].long().float()
-                        if self.opt.real_background:
-                            data_instance['fg'] = data_instance['image'] * data_instance['label'].long().float()
-                            data_instance['bg'] = data_instance['image'] * (1-data_instance['label'].long()).float()
-                        if self.opt.position_encode:
-                            _, h, w = data_instance['label'].size()
-                            data_instance['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
-                            data_instance['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
-                        data_instance['instance'] = 0
-                        all_objects[instance_name] = data_instance
+                assert down-up == right-left
+                cropped = img_new.crop((left, up, right, down))
+                mask_out = (instance_masked_new == instance_id).astype(int)
+                cropped_mask = mask_out[up:down, left:right]
+                cropped_label = Image.fromarray(cropped_mask.astype('uint8'))
+                obj_params = get_params(self.opt, (right-left, down-up), use_object=True, use_flip=flip)
+                transform_obj_image = get_transform(self.opt, obj_params, use_object=True)
+                transform_obj_label = get_transform(self.opt, obj_params, method=Image.NEAREST, normalize=False, use_object=True)
+#                if not w_padded:
+#                    new_left = int(float(left)/width*self.opt.crop_size)
+#                    new_right = int(float(right)/width*self.opt.crop_size)
+#                else:
+#                    new_left = int(float(left-width)/width*self.opt.crop_size)
+#                    new_right = int(float(right-width)/width*self.opt.crop_size)
+#                if not h_padded:
+#                    new_up = int(float(up)/height*self.opt.crop_size)
+#                    new_down = int(float(down)/height*self.opt.crop_size)
+#                else:
+#                    new_up = int(float(up-height)/height*self.opt.crop_size)
+#                    new_down = int(float(down-height)/height*self.opt.crop_size)
+                new_left = float(left)/width*self.opt.crop_size
+                new_right = float(right)/width*self.opt.crop_size
+                new_up = float(up)/height*self.opt.crop_size
+                new_down = float(down)/height*self.opt.crop_size
 
-        chosen = np.random.choice(list(all_objects.keys()), self.opt.max_object_per_image)
-#        print(all_objects.keys())
-#        for obj, (obj_id, min_size) in self.object_info.items():
-#            for i in range(self.opt.max_object_per_image):
-#                instance_name = obj + '_%03d' % (i+1)
-#                input_dict['object_%03d' % i] = all_objects[instance_name]
+                if flip:
+                    if w_padded:
+                        data_instance['bbox'] = [int(self.opt.crop_size*3-new_right), int(new_up), int(self.opt.crop_size*3-new_left), int(new_down), w_padded, h_padded, width, height]
+                    else:
+                        data_instance['bbox'] = [int(self.opt.crop_size-new_right), int(new_up), int(self.opt.crop_size-new_left), int(new_down), w_padded, h_padded, width, height]
+                else:
+                    data_instance['bbox'] = [int(new_left), int(new_up), int(new_right), int(new_down), w_padded, h_padded, width, height]
+                data_instance['image'] = transform_obj_image(cropped)
+                data_instance['label'] = transform_obj_label(cropped_label) * 255.0
+                if self.opt.use_acgan:
+                    object_class = self.mapping[obj_id]
+                    object_tensor = torch.FloatTensor(1).fill_(object_class)
+                    object_tensor = object_tensor.expand_as(data_instance['label'])
+                    data_instance['object'] = object_tensor
+                    data_instance['object_class'] = object_class
+                if self.opt.use_scene:
+                    scene_tensor = torch.FloatTensor(1).fill_(scene_class)
+                    scene_tensor = scene_tensor.expand_as(data_instance['label'])
+                    data_instance['scene'] = scene_tensor
 
-        for i in range(self.opt.max_object_per_image):
-            all_objects[chosen[i]]['object_name'] = chosen[i]
-            input_dict['object_%03d' % i] = all_objects[chosen[i]]
-#            print('####################pix2pix.py###############')
-#            print(input_dict['object_%03d' % i]['bbox'])
-#            print(image_path)
+                if self.opt.no_background:
+                    data_instance['image'] = data_instance['image'] * data_instance['label'].long().float()
+                if self.opt.real_background:
+                    data_instance['fg'] = data_instance['image'] * data_instance['label'].long().float()
+                    data_instance['bg'] = data_instance['image'] * (1-data_instance['label'].long()).float()
+                if self.opt.position_encode:
+                    _, h, w = data_instance['label'].size()
+                    data_instance['pos_x'] = torch.LongTensor(np.array([[[j for j in range(w)] for i in range(h)]]))
+                    data_instance['pos_y'] = torch.LongTensor(np.array([[[i for j in range(w)] for i in range(h)]]))
+                data_instance['instance'] = 0
+                all_objects[chosen_object] = data_instance
 
+            for i,  chosen_object in enumerate(all_objects):
+                all_objects[chosen_object]['object_name'] = chosen_object
+                input_dict['object_%03d' % i] = all_objects[chosen_object]
 
         # depth (processing)
         if self.opt.use_depth:
