@@ -39,7 +39,8 @@ for i, data_i in enumerate(dataloader):
     for b in range(generated.shape[0]):
         print('process image... %s' % img_path[b])
         visuals = OrderedDict([('input_label', data_i['label'][b]),
-                               ('synthesized_image', generated[b])])
+                               ('synthesized_image', generated[b]),
+                               ('real_image', data_i['image'][b])])
         visualizer.save_images(webpage, visuals, img_path[b:b + 1])
 
 webpage.save()

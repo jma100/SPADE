@@ -33,7 +33,7 @@ class Pix2PixModel(torch.nn.Module):
                 self.criterionVGG = networks.VGGLoss(self.opt.gpu_ids)
             if opt.use_vae:
                 self.KLDLoss = networks.KLDLoss()
-            if opt.use_acgan:
+            if opt.use_acgan_loss:
                 self.criterionACGAN = networks.ACLoss(
                 tensor=self.FloatTensor, opt=self.opt)
 
@@ -230,7 +230,7 @@ class Pix2PixModel(torch.nn.Module):
         if self.opt.use_vae:
             G_losses['KLD'] = KLD_loss
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             pred_fake, pred_real, class_fake, class_real = self.discriminate(
                 input_semantics, fake_image, real_image)
         else:
@@ -240,7 +240,7 @@ class Pix2PixModel(torch.nn.Module):
         G_losses['GAN'] = self.criterionGAN(pred_fake, True,
                                             for_discriminator=False)
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             G_losses['ACLoss'] = self.criterionACGAN(class_fake, object_class) * self.opt.lambda_acgan
         if not self.opt.no_ganFeat_loss:
             num_D = len(pred_fake)
@@ -267,7 +267,7 @@ class Pix2PixModel(torch.nn.Module):
             fake_image = fake_image.detach()
             fake_image.requires_grad_()
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             pred_fake, pred_real, class_fake, class_real = self.discriminate(
                 input_semantics, fake_image, real_image)
         else:
@@ -278,7 +278,7 @@ class Pix2PixModel(torch.nn.Module):
                                                for_discriminator=True)
         D_losses['D_real'] = self.criterionGAN(pred_real, True,
                                                for_discriminator=True)
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             D_losses['D_class_fake'] = self.criterionACGAN(class_fake, object_class) * self.opt.lambda_acgan
             D_losses['D_class_real'] = self.criterionACGAN(class_real, object_class) * self.opt.lambda_acgan
 
@@ -322,7 +322,7 @@ class Pix2PixModel(torch.nn.Module):
         # So both fake and real images are fed to D all at once.
         fake_and_real = torch.cat([fake_concat, real_concat], dim=0)
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             discriminator_out, pred_class = self.netD(fake_and_real)
             pred_fake, pred_real = self.divide_pred(discriminator_out)
             class_fake, class_real = pred_class

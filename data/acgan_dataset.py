@@ -21,6 +21,7 @@ class ACGanDataset(Pix2pixDataset):
         parser.set_defaults(no_instance=True)
         parser.add_argument('--train_list', type=str, help='import list of training folders')
         parser.add_argument('--use_scene', action='store_true', help='input scene category or not')
+        parser.add_argument('--use_acgan_loss', action='store_true', help='add acgan loss or not')
         parser.set_defaults(use_acgan=True)
         parser.set_defaults(use_scene=True)
         parser.set_defaults(acgan_nc=88)

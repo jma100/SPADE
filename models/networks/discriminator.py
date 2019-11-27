@@ -52,11 +52,11 @@ class MultiscaleDiscriminator(BaseNetwork):
     # The final result is of size opt.num_D x opt.n_layers_D
     def forward(self, input):
         result = []
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             class_result = []
         get_intermediate_features = not self.opt.no_ganFeat_loss
         for name, D in self.named_children():
-            if self.opt.use_acgan:
+            if self.opt.use_acgan_loss:
                 out, pred_class = D(input)
                 class_result.append(pred_class)
             else:
@@ -65,7 +65,7 @@ class MultiscaleDiscriminator(BaseNetwork):
                 out = [out]
             result.append(out)
             input = self.downsample(input)
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             return result, class_result
         return result
 
@@ -140,7 +140,7 @@ class NLayerDiscriminator(BaseNetwork):
             counter += 1
 
 #        pred_real_fake = self.adv_layer(results[-1])
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             pred_object = nn.Softmax(dim=1)(self.aux_layer(results[-2]))
             bs, c, h, w = pred_object.size()
             pred_object = pred_object.view(bs, c, h*w)
@@ -149,7 +149,7 @@ class NLayerDiscriminator(BaseNetwork):
 
         get_intermediate_features = not self.opt.no_ganFeat_loss
 
-        if self.opt.use_acgan:
+        if self.opt.use_acgan_loss:
             if get_intermediate_features:
                 return results[1:], pred_object
             else:
