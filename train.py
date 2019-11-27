@@ -40,6 +40,7 @@ for epoch in iter_counter.training_epochs():
         for obj, obj_data in data_i.items():
             opt.is_object = True if obj != 'global' else False
             data_i[obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
+        import pdb; pdb.set_trace()
         z = []
         # Training
         # train each object

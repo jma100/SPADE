@@ -15,31 +15,34 @@ class ConvEncoder(BaseNetwork):
 
     def __init__(self, opt):
         super().__init__()
-
-        if opt.is_object or opt.dataset_mode == 'ade20kobj' or opt.dataset_mode == 'acgan':
-            self.encode_size = 128
+        if opt.is_object:
+            self.encode_size = opt.obj_crop_size
         else:
-            self.encode_size = 256
+            self.encode_size = opt.crop_size
 
         kw = 3
         pw = int(np.ceil((kw - 1.0) / 2))
         ndf = opt.ngf
         norm_layer = get_nonspade_norm_layer(opt, opt.norm_E)
-        if opt.position_encode and opt.is_object:
-            in_channel = 5
-        else:
-            in_channel = 3
-        self.layer1 = norm_layer(nn.Conv2d(in_channel, ndf, kw, stride=2, padding=pw))
+        self.layer1 = norm_layer(nn.Conv2d(3, ndf, kw, stride=2, padding=pw))
         self.layer2 = norm_layer(nn.Conv2d(ndf * 1, ndf * 2, kw, stride=2, padding=pw))
         self.layer3 = norm_layer(nn.Conv2d(ndf * 2, ndf * 4, kw, stride=2, padding=pw))
-        self.layer4 = norm_layer(nn.Conv2d(ndf * 4, ndf * 8, kw, stride=2, padding=pw))
-        self.layer5 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
-        if self.encode_size >= 256:
+
+        if (opt.is_object and opt.obj_crop_size >=64) or (not opt.is_object and opt.crop_size >= 64):
+            self.layer4 = norm_layer(nn.Conv2d(ndf * 4, ndf * 4, kw, stride=2, padding=pw))
+        if (opt.is_object and opt.obj_crop_size >=128) or (not opt.is_object and opt.crop_size >= 128):
+            self.layer4 = norm_layer(nn.Conv2d(ndf * 4, ndf * 8, kw, stride=2, padding=pw))
+            self.layer5 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
+        if (opt.is_object and opt.obj_crop_size >=256) or (not opt.is_object and opt.crop_size >= 256):
             self.layer6 = norm_layer(nn.Conv2d(ndf * 8, ndf * 8, kw, stride=2, padding=pw))
 
         self.so = s0 = 4
-        self.fc_mu = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
-        self.fc_var = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
+        if (opt.is_object and opt.obj_crop_size >=128) or (not opt.is_object and opt.crop_size >= 128):
+            self.fc_mu = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
+            self.fc_var = nn.Linear(ndf * 8 * s0 * s0, opt.z_dim)
+        else:
+            self.fc_mu = nn.Linear(ndf * 4 * s0 * s0, opt.z_dim)
+            self.fc_var = nn.Linear(ndf * 4 * s0 * s0, opt.z_dim)
 
         self.actvn = nn.LeakyReLU(0.2, False)
         self.opt = opt
@@ -52,8 +55,9 @@ class ConvEncoder(BaseNetwork):
         x = self.layer2(self.actvn(x))
         x = self.layer3(self.actvn(x))
         x = self.layer4(self.actvn(x))
-        x = self.layer5(self.actvn(x))
-        if self.encode_size >= 256:
+        if (opt.is_object and opt.obj_crop_size >=128) or (not opt.is_object and opt.crop_size >= 128):
+            x = self.layer5(self.actvn(x))
+        if (opt.is_object and opt.obj_crop_size >=256) or (not opt.is_object and opt.crop_size >= 256):
             x = self.layer6(self.actvn(x))
         x = self.actvn(x)
 
@@ -62,3 +66,4 @@ class ConvEncoder(BaseNetwork):
         logvar = self.fc_var(x)
 
         return mu, logvar
+
