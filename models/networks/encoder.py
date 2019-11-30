@@ -19,7 +19,7 @@ class ConvEncoder(BaseNetwork):
         if opt.dataset_mode == 'ade20kobj' or opt.dataset_mode == 'acgan':
             self.encode_size = 128
         else:
-            self.encode_size = 256
+            self.encode_size = opt.crop_size
 
         kw = 3
         pw = int(np.ceil((kw - 1.0) / 2))
