@@ -45,6 +45,7 @@ class ADE20KGlobalDataset(Pix2pixDataset):
         parser.add_argument('--use_stuff_vae', action='store_true', help='set to True when loading an stuff generator trained with vae')
         parser.add_argument('--use_object_vae', action='store_true', help='set to True when loading an object generator trained with vae')
         parser.add_argument('--no_merge_layer', action='store_true', help='do not use a merge layer, use copy pasting')
+        parser.add_argument('--red_box', action='store_true', help='red box objects during visualization')
         parser.add_argument('--depth_dir', type=str, help='depth folder path')
         
 

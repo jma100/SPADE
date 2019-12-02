@@ -13,6 +13,8 @@ from trainers.merge_trainer import MergeTrainer
 import torch
 from torchsummary import summary
 
+torch.multiprocessing.set_sharing_strategy('file_system')
+
 # parse options
 opt = TrainOptions().parse()
 
@@ -32,15 +34,23 @@ iter_counter = IterationCounter(opt, len(dataloader))
 # create tool for visualization
 visualizer = Visualizer(opt)
 
+
 for epoch in iter_counter.training_epochs():
     iter_counter.record_epoch_start(epoch)
     for i, data_i in enumerate(dataloader, start=iter_counter.epoch_iter):
         iter_counter.record_one_iteration()
 
-        for obj, obj_data in data_i.items():
-            opt.is_object = True if obj != 'global' else False
-            data_i[obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
-        import pdb; pdb.set_trace()
+        # Process background model data
+        opt.is_object = False
+        data_i['global'] = merge_trainer.merge_model.module.preprocess_input(data_i['global'])
+
+        # Process object model data
+        opt.is_object = True
+#        data_i['object'] = merge_trainer.merge_model.module.preprocess_object_input(obj_data)
+
+        for obj, obj_data in data_i['object'].items():
+#            opt.is_object = True if obj != 'global' else False
+            data_i['object'][obj] = merge_trainer.merge_model.module.preprocess_input(obj_data)
         z = []
         # Training
         # train each object
@@ -49,17 +59,17 @@ for epoch in iter_counter.training_epochs():
             name = 'object_%03d' % n
             # train object generator
             if i % opt.D_steps_per_G == 0:
-                merge_trainer.run_object_generator_one_step(data_i[name])
-                data_i[name]['generated'] = merge_trainer.object_generated
-                data_i[name]['features'] = merge_trainer.object_features
-                data_i[name]['z'] = merge_trainer.object_z
-                if z == []:
-                    z = data_i[name]['z']
+                merge_trainer.run_object_generator_one_step(data_i['object'][name])
+                data_i['object'][name]['generated'] = merge_trainer.object_generated
+                data_i['object'][name]['features'] = merge_trainer.object_features
+                data_i['object'][name]['z'] = merge_trainer.object_z
+                if len(z) == 0:
+                    z = data_i['object'][name]['z']
                 else:
-                    z = torch.cat([z, data_i[name]['z']], 1)
+                    z = torch.cat([z, data_i['object'][name]['z']], 1)
             # train object discriminator
             if not opt.load_pretrain:
-                merge_trainer.run_object_discriminator_one_step(data_i[name])
+                merge_trainer.run_object_discriminator_one_step(data_i['object'][name])
         torch.cuda.empty_cache()
 
         opt.is_object = False
@@ -99,14 +109,18 @@ for epoch in iter_counter.training_epochs():
 
         if iter_counter.needs_displaying():
             visuals = OrderedDict([('input_label', data_i['global']['label'])])
+            visuals['object'] = dict()
             for n in range(opt.max_object_per_image):
                 name = 'object_%03d' % n
-                visuals[name] = data_i[name]['generated']
+                for k, padded in enumerate(data_i['object'][name]['padded']):
+                    if padded.item() == 1:
+                        data_i['object'][name]['generated'][k, :, :, :] = -1
+                visuals['object'][name] = data_i['object'][name]['generated']
             visuals['synthesized_global'] = data_i['global']['generated']
             visuals['combined_image'] = data_i['generated']
             visuals['real_image'] = data_i['global']['image']
 
-            visualizer.display_current_results(visuals, epoch, iter_counter.total_steps_so_far)
+            visualizer.display_results_one_by_one(visuals, epoch, iter_counter.total_steps_so_far)
 
         if iter_counter.needs_saving():
             print('saving the latest model (epoch %d, total_steps %d)' %
@@ -125,4 +139,3 @@ for epoch in iter_counter.training_epochs():
         merge_trainer.save(epoch)
 
 print('Training was successfully finished.')
-

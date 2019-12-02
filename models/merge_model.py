@@ -197,10 +197,20 @@ class MergeModel(torch.nn.Module):
         if 'generated' in data:
             input_dict['generated'] = data['generated']
         if self.opt.is_object:
+            input_dict['padded'] = data['padded']
             input_dict['bbox'] = data['bbox']
             input_dict['object_name'] = data['object_name']
             input_dict['mask'] = data['label'].float()
         return input_dict
+
+#    def preprocess_object_input(self, data):
+#        object_dict = dict()
+#        for obj, obj_data in data.items():
+#            if len(obj_data) > 0:
+#                object_dict[obj] = self.preprocess_input(obj_data)
+#            else:
+#                object_dict[obj] = obj_data
+#        return object_dict
 
     def create_optimizers(self, opt):
         if opt.load_pretrain:

@@ -9,6 +9,8 @@ import time
 from . import util
 from . import html
 import scipy.misc
+import torch
+
 try:
     from StringIO import StringIO  # Python 2.7
 except ImportError:
@@ -157,3 +159,92 @@ class Visualizer():
             txts.append(label)
             links.append(image_name)
         webpage.add_images(ims, txts, links, width=self.win_size)
+
+    def convert_visual_to_numpy_one_by_one(self, visuals):
+        batchSize = visuals['input_label'].size()[0]
+        for key, t in visuals.items():
+            if 'object' == key:
+                lst = []
+                for i in range(batchSize):
+                    object_tensor = None
+                    for n in range(self.opt.max_object_per_image):
+                        name = 'object_%03d' % n
+                        if object_tensor is None:
+                            object_tensor = visuals['object'][name][i:i+1, :, :, :]
+                        else:
+                            object_tensor = torch.cat([object_tensor, visuals['object'][name][i:i+1, :, :, :]])
+
+                    tile = self.opt.max_object_per_image > 3
+                    im = util.tensor2im(object_tensor, tile=tile)
+                    lst.append(im)
+                t = lst
+            elif 'input_label' == key:
+                t = util.tensor2label(t, self.opt.label_nc + 2, list_=True)
+            else:
+                t = util.tensor2im(t, list_=True)
+            visuals[key] = t
+        return visuals
+
+    def display_results_one_by_one(self, visuals, epoch, step):
+        visuals = self.convert_visual_to_numpy_one_by_one(visuals)
+
+        if self.tf_log: # show images in tensorboard output
+            img_summaries = []
+            for label, image_numpy in visuals.items():
+                # Write the image to a string
+                try:
+                    s = StringIO()
+                except:
+                    s = BytesIO()
+                if isinstance(image_numpy, list) or len(image_numpy.shape) >= 4:
+                    image_numpy = image_numpy[0]
+                scipy.misc.toimage(image_numpy).save(s, format="jpeg")
+                # Create an Image object
+                img_sum = self.tf.Summary.Image(encoded_image_string=s.getvalue(), height=image_numpy.shape[0], width=image_numpy.shape[1])
+                # Create a Summary value
+                img_summaries.append(self.tf.Summary.Value(tag=label, image=img_sum))
+
+            # Create and write Summary
+            summary = self.tf.Summary(value=img_summaries)
+            self.writer.add_summary(summary, step)
+
+        if self.use_html: # save images to a html file
+            for label, image_numpy in visuals.items():
+                if isinstance(image_numpy, list):
+                    for i in range(len(image_numpy)):
+                        img_path = os.path.join(self.img_dir, 'epoch%.3d_iter%.3d_%s_%d.png' % (epoch, step, label, i))
+                        util.save_image(image_numpy[i], img_path)
+                else:
+                    img_path = os.path.join(self.img_dir, 'epoch%.3d_iter%.3d_%s.png' % (epoch, step, label))
+                    if len(image_numpy.shape) >= 4:
+                        image_numpy = image_numpy[0]                    
+                    util.save_image(image_numpy, img_path)
+
+            # update website
+            webpage = html.HTML(self.web_dir, 'Experiment name = %s' % self.name, refresh=5)
+            for n in range(epoch, 0, -1):
+                webpage.add_header('epoch [%d]' % n)
+                ims = []
+                txts = []
+                links = []
+
+                batchSize = len(visuals['input_label'])
+                for i in range(batchSize):
+                    for label, image_numpy in visuals.items():
+                        img_path = 'epoch%.3d_iter%.3d_%s_%d.png' % (n, step, label, i)
+                        ims.append(img_path)
+                        txts.append(label+str(i))
+                        links.append(img_path)
+
+                for i in range(batchSize):
+                    start = i * len(visuals)
+                    end = (i+1) * len(visuals)
+                    webpage.add_images(ims[start:end], txts[start:end], links[start:end], width=self.win_size)
+                    
+#                if len(ims) < 10:
+#                    webpage.add_images(ims, txts, links, width=self.win_size)
+#                else:
+#                    num = int(round(len(ims)/2.0))
+#                    webpage.add_images(ims[:num], txts[:num], links[:num], width=self.win_size)
+#                    webpage.add_images(ims[num:], txts[num:], links[num:], width=self.win_size)
+            webpage.save()

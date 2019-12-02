@@ -61,7 +61,7 @@ def tile_images(imgs, picturesPerRow=4):
 
 # Converts a Tensor into a Numpy array
 # |imtype|: the desired type of the converted numpy array
-def tensor2im(image_tensor, imtype=np.uint8, normalize=True, tile=False):
+def tensor2im(image_tensor, imtype=np.uint8, normalize=True, tile=False, list_=False):
     if isinstance(image_tensor, list):
         image_numpy = []
         for i in range(len(image_tensor)):
@@ -74,7 +74,13 @@ def tensor2im(image_tensor, imtype=np.uint8, normalize=True, tile=False):
         for b in range(image_tensor.size(0)):
             one_image = image_tensor[b]
             one_image_np = tensor2im(one_image)
-            images_np.append(one_image_np.reshape(1, *one_image_np.shape))
+            if list_:
+                images_np.append(one_image_np)
+            else:
+                images_np.append(one_image_np.reshape(1, *one_image_np.shape))
+        if list_:
+            return images_np
+
         images_np = np.concatenate(images_np, axis=0)
         if tile:
             images_tiled = tile_images(images_np)
@@ -96,14 +102,19 @@ def tensor2im(image_tensor, imtype=np.uint8, normalize=True, tile=False):
 
 
 # Converts a one-hot tensor into a colorful label map
-def tensor2label(label_tensor, n_label, imtype=np.uint8, tile=False):
+def tensor2label(label_tensor, n_label, imtype=np.uint8, tile=False, list_=False):
     if label_tensor.dim() == 4:
         # transform each image in the batch
         images_np = []
         for b in range(label_tensor.size(0)):
             one_image = label_tensor[b]
             one_image_np = tensor2label(one_image, n_label, imtype)
-            images_np.append(one_image_np.reshape(1, *one_image_np.shape))
+            if list_:
+                images_np.append(one_image_np)
+            else:
+                images_np.append(one_image_np.reshape(1, *one_image_np.shape))
+        if list_:
+            return images_np
         images_np = np.concatenate(images_np, axis=0)
         if tile:
             images_tiled = tile_images(images_np)

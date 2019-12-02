@@ -20,18 +20,18 @@ class Assembler(BaseNetwork):
 
     def forward(self, data):
         z = data['z']
-        global_gen = data['global']['features'].clone()
+        global_gen = data['global']['features']
         _, _, height, width = global_gen.size()
         global_label = F.interpolate(data['global']['label'], size=(height, width), mode='nearest')
+        '''
         for i in range(global_gen.size()[0]):
-            for obj, obj_data in data.items():
-                if obj in ['global', 'z', 'generated']:
+            for obj, obj_data in data['object'].items():
+                if obj_data['padded'][i] == 0:
                     continue
-                instance_data = data[obj]
-                left, up, right, down, w_padded, h_padded, w, h = [f[i].item() for f in instance_data['bbox']]
+                left, up, right, down, w_padded, h_padded, w, h = [f[i].item() for f in obj_data['bbox']]
                 size = self.opt.crop_size
-                instance_resized_gen = F.interpolate(instance_data['features'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
-                instance_resized_mask = F.interpolate(instance_data['mask'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
+                instance_resized_gen = F.interpolate(obj_data['features'][i:i+1,:,:,:], size=(down-up, right-left), mode='bilinear')
+                instance_resized_mask = F.interpolate(obj_data['mask'][i:i+1, :, :, :], size=(down-up, right-left), mode='nearest')
 
 
                 # find left, right, up, down coordinates in the 256 by 256
@@ -61,6 +61,7 @@ class Assembler(BaseNetwork):
                     instance_resized_mask = instance_resized_mask[:, :, obj_c_up:obj_c_down, :]
                 assert not (w_padded and h_padded)
                 global_gen[i:i+1, :, c_up:c_down, c_left:c_right] = global_gen[i:i+1, :, c_up:c_down, c_left:c_right].clone() * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
+        '''
         if not self.opt.no_merge_layer:
             global_gen = torch.cat((data['global']['features'], global_gen), dim=1)
             global_gen = self.conv_merge(global_gen)
@@ -71,4 +72,5 @@ class Assembler(BaseNetwork):
         global_gen = self.conv_img(F.leaky_relu(global_gen, 2e-1, inplace=True))
         global_gen = F.tanh(global_gen)
         return global_gen, data['global']['image'], data['global']['label']
+
 

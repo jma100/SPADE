@@ -56,8 +56,10 @@ class SPADEResnetBlock(nn.Module):
         if self.learned_shortcut:
             self.norm_s = SPADE(spade_config_str, fin, input_nc)
         if assemble and opt.use_stuff_vae and opt.use_object_vae:
-            self.fc = nn.Linear(opt.z_dim*2, opt.w_dim*2)
-        elif assemble and (opt.use_stuff_vae or opt.use_object_vae):
+            self.fc = nn.Linear(opt.z_dim*(opt.max_object_per_image+1), opt.w_dim*(opt.max_object_per_image+1))
+        elif assemble and opt.use_object_vae:
+            self.fc = nn.Linear(opt.z_dim*opt.max_object_per_image, opt.w_dim*opt.max_object_per_image)
+        elif assemble and opt.use_stuff_vae:
             self.fc = nn.Linear(opt.z_dim, opt.w_dim)
         elif (opt.use_object_z and opt.is_object) or (opt.use_stuff_z and not opt.is_object and not assemble):
             self.fc = nn.Linear(opt.z_dim, opt.w_dim)
@@ -68,10 +70,7 @@ class SPADEResnetBlock(nn.Module):
     def forward(self, x, seg, z=None):
         if z is not None:
             w = self.fc(z)
-            if self.assemble and self.opt.use_stuff_vae and self.opt.use_object_vae:
-                w = w.view(-1, 2, int(self.w_dim**0.5), int(self.w_dim**0.5))
-            else:
-                w = w.view(-1, 1, int(self.w_dim**0.5), int(self.w_dim**0.5))
+            w = w.view(x.size()[0], -1, int(self.w_dim**0.5), int(self.w_dim**0.5))
             x_s = self.shortcut_with_style(x, seg, w)
 
             dx = self.conv_0(self.actvn(self.norm_0(x, seg, w)))

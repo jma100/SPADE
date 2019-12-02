@@ -5,13 +5,14 @@ Licensed under the CC BY-NC-SA 4.0 license (https://creativecommons.org/licenses
 """
 
 from data.base_dataset import BaseDataset, get_params, get_transform
-from PIL import Image
+from PIL import Image, ImageDraw
 import util.util as util
 import os
 import torch
 import numpy as np
 import json
 from scipy import ndimage
+import copy
 
 class Pix2pixDataset(BaseDataset):
     @staticmethod
@@ -106,6 +107,7 @@ class Pix2pixDataset(BaseDataset):
             (label_path, image_path)
         image = Image.open(image_path)
         image = image.convert('RGB')
+        draw = ImageDraw.Draw(image)
         assert label.size == image.size
 
         # Depth
@@ -132,6 +134,7 @@ class Pix2pixDataset(BaseDataset):
 
         # objects
         if self.opt.dataset_mode == 'ade20kglobal' and self.opt.use_instance_crop:
+            object_dict = dict()
             objects_exist = list(set(np.unique(label_data)).intersection(set(self.yes_classes)))
             # get scene class
             if self.opt.use_scene:
@@ -174,6 +177,7 @@ class Pix2pixDataset(BaseDataset):
                 data_instance = dict()
                 # Add margins
                 up, down, left, right = max(0, up-margin), min(height, down+margin), max(0, left -margin), min(width, right + margin)
+                draw.rectangle([(left, up), (right, down)], outline='red')
                 w, h = right-left, down-up
                 if w > h:
                     # Make square
@@ -196,7 +200,7 @@ class Pix2pixDataset(BaseDataset):
                         instance_masked_new = instance_masked
                         if self.opt.use_depth:
                             depth_new = depth
-	
+    
                 elif h > w:
                     # Make square
                     center = (left+right)//2
@@ -258,6 +262,7 @@ class Pix2pixDataset(BaseDataset):
                         data_instance['bbox'] = [int(self.opt.crop_size-new_right), int(new_up), int(self.opt.crop_size-new_left), int(new_down), w_padded, h_padded, width, height]
                 else:
                     data_instance['bbox'] = [int(new_left), int(new_up), int(new_right), int(new_down), w_padded, h_padded, width, height]
+                    
                 data_instance['image'] = transform_obj_image(cropped)
                 data_instance['label'] = transform_obj_label(cropped_label) * 255.0
                 if self.opt.use_depth:
@@ -287,10 +292,19 @@ class Pix2pixDataset(BaseDataset):
                 all_objects[chosen_object] = data_instance
 
             for i,  chosen_object in enumerate(all_objects):
+                # Draw red boxes
+                
                 all_objects[chosen_object]['object_name'] = chosen_object
-                input_dict['object_%03d' % i] = all_objects[chosen_object]
+                all_objects[chosen_object]['padded'] = 0
+                object_dict['object_%03d' % i] = all_objects[chosen_object]
 
-
+            # Pad dict so we can train in batch
+            for i in range(len(all_objects), self.opt.max_object_per_image):
+#                object_dict['object_%03d' % i] = copy.deepcopy(object_dict['object_%03d' % (len(all_objects)-1)])
+                tmp = copy.deepcopy(object_dict['object_%03d' % (len(all_objects)-1)])
+                tmp['padded'] = 1
+                object_dict['object_%03d' % i] = tmp
+#                 object_dict['object_%03d' % i] = dict()
 
         transform_image = get_transform(self.opt, params)
         image_tensor = transform_image(image)
@@ -322,6 +336,7 @@ class Pix2pixDataset(BaseDataset):
         self.postprocess(data_global)
         input_dict['global'] = data_global
         if self.opt.dataset_mode == 'ade20kglobal':
+            input_dict['object'] = object_dict
             return input_dict
         else:
             return data_global
@@ -330,3 +345,4 @@ class Pix2pixDataset(BaseDataset):
 
     def __len__(self):
         return self.dataset_size
+

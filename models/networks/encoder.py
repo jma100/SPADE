@@ -55,9 +55,9 @@ class ConvEncoder(BaseNetwork):
         x = self.layer2(self.actvn(x))
         x = self.layer3(self.actvn(x))
         x = self.layer4(self.actvn(x))
-        if (opt.is_object and opt.obj_crop_size >=128) or (not opt.is_object and opt.crop_size >= 128):
+        if (self.opt.is_object and self.opt.obj_crop_size >=128) or (not self.opt.is_object and self.opt.crop_size >= 128):
             x = self.layer5(self.actvn(x))
-        if (opt.is_object and opt.obj_crop_size >=256) or (not opt.is_object and opt.crop_size >= 256):
+        if (self.opt.is_object and self.opt.obj_crop_size >=256) or (not self.opt.is_object and self.opt.crop_size >= 256):
             x = self.layer6(self.actvn(x))
         x = self.actvn(x)
 
