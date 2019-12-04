@@ -23,10 +23,10 @@ class Assembler(BaseNetwork):
         global_gen = data['global']['features']
         _, _, height, width = global_gen.size()
         global_label = F.interpolate(data['global']['label'], size=(height, width), mode='nearest')
-        '''
+        
         for i in range(global_gen.size()[0]):
             for obj, obj_data in data['object'].items():
-                if obj_data['padded'][i] == 0:
+                if obj_data['padded'][i] == 1:
                     continue
                 left, up, right, down, w_padded, h_padded, w, h = [f[i].item() for f in obj_data['bbox']]
                 size = self.opt.crop_size
@@ -61,7 +61,7 @@ class Assembler(BaseNetwork):
                     instance_resized_mask = instance_resized_mask[:, :, obj_c_up:obj_c_down, :]
                 assert not (w_padded and h_padded)
                 global_gen[i:i+1, :, c_up:c_down, c_left:c_right] = global_gen[i:i+1, :, c_up:c_down, c_left:c_right].clone() * (1-instance_resized_mask) + instance_resized_gen * instance_resized_mask
-        '''
+
         if not self.opt.no_merge_layer:
             global_gen = torch.cat((data['global']['features'], global_gen), dim=1)
             global_gen = self.conv_merge(global_gen)
