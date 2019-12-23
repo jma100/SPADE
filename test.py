@@ -22,7 +22,6 @@ model = MergeModel(opt)
 for name, param in model.named_parameters():
     if name == 'netA.conv_merge.weight':
         weights = param
-import pdb; pdb.set_trace()
 model.eval()
 
 visualizer = Visualizer(opt)
@@ -44,14 +43,22 @@ for i, data_i in enumerate(dataloader):
         data_i[obj] = model.preprocess_input(obj_data)
 
     # Inference each object
+    z = []
     opt.is_object = True
     for n in range(opt.max_object_per_image):
         name = 'object_%03d' % n
-        data_i[name]['generated'] =  model.net_object(data_i[name], mode='inference')
+        data_i[name]['generated'], data_i[name]['features'], data_i[name]['z'] =  model.net_object(data_i[name], mode='inference')
+        if z == []:
+            z = data_i[name]['z']
+        else:
+            z = torch.cat([z, data_i[name]['z']], 1)
 
     # Inference stuff
     opt.is_object = False
-    data_i['global']['generated'] = model.net_global(data_i['global'], mode='inference')
+    data_i['global']['generated'], data_i['global']['features'], data_i['global']['z'] = model.net_global(data_i['global'], mode='inference')
+    if opt.use_stuff_vae:
+        z = torch.cat([z, data_i['global']['z']], 1)
+    data_i['z'] = z
 
     generated = model(data_i, mode='inference')
 
@@ -59,7 +66,10 @@ for i, data_i in enumerate(dataloader):
     for b in range(generated.shape[0]):
         print('process image... %s' % img_path[b])
         visuals = OrderedDict([('input_label', data_i['global']['label'][b]),
-                               ('synthesized_image', generated[b])])
+                               ('object', data_i['object_000']['generated'][b]),
+                               ('background', data_i['global']['generated'][b]),
+                               ('merged_image', generated[b]), 
+                               ('real_image', data_i['global']['image'][b])])
         visualizer.save_images(webpage, visuals, img_path[b:b + 1])
 
 webpage.save()

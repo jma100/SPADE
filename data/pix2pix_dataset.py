@@ -94,6 +94,8 @@ class Pix2pixDataset(BaseDataset):
         label = Image.open(label_path).convert('L')
         label_data = np.array(label)
         params = get_params(self.opt, label.size)
+        if self.opt.no_flip:
+            params['flip'] = False
         transform_label = get_transform(self.opt, params, method=Image.NEAREST, normalize=False)
         label_tensor = transform_label(label) * 255.0
         label_tensor[label_tensor == 255] = self.opt.label_nc  # 'unknown' is opt.label_nc
@@ -250,7 +252,6 @@ class Pix2pixDataset(BaseDataset):
                 new_right = float(right)/width*self.opt.crop_size
                 new_up = float(up)/height*self.opt.crop_size
                 new_down = float(down)/height*self.opt.crop_size
-
                 if flip:
                     if w_padded:
                         data_instance['bbox'] = [int(self.opt.crop_size*3-new_right), int(new_up), int(self.opt.crop_size*3-new_left), int(new_down), w_padded, h_padded, width, height]
